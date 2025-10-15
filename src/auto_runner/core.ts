@@ -1,17 +1,5 @@
-import { z } from 'zod';
 import _ from 'lodash';
-
-// 复用 app.vue 中的 Zod Schema
-const SettingsSchema = z.object({
-  enabled: z.boolean().default(false),
-  prompt: z.string().default(''),
-  apiUrl: z.string().default(''),
-  apiKey: z.string().default(''),
-  temperature: z.number().min(0).max(2).default(0.7),
-  maxReplies: z.number().min(1).default(10),
-});
-
-type Settings = z.infer<typeof SettingsSchema>;
+import { SettingsSchema, type Settings } from './types';
 
 // 存储当前剩余回复次数的状态
 let remainingReplies = 0;
@@ -28,7 +16,7 @@ async function onMessageReceived(message_id: number) {
   const lastMessage = getChatMessages(-1)[0];
 
   // 2. 检查触发条件
-  if (!settings.enabled || lastMessage.role !== 'assistant' || remainingReplies <= 0) {
+  if (!settings.enabled || !lastMessage || lastMessage.role !== 'assistant' || remainingReplies <= 0) {
     return;
   }
 
@@ -65,10 +53,10 @@ async function onMessageReceived(message_id: number) {
 
     // 6. 更新状态
     remainingReplies--;
-    // 可以在这里将 remainingReplies 保存到变量中，如果需要跨会话保持状态
     toastr.success(`指令已发送，剩余 ${remainingReplies} 次。`);
 
-  } catch (error) {
+  } catch (e: any) {
+    const error = e as Error;
     console.error('自动化脚本运行出错:', error);
     toastr.error(`脚本错误: ${error.message}`);
   } finally {
@@ -76,23 +64,25 @@ async function onMessageReceived(message_id: number) {
     if (remainingReplies <= 0) {
         toastr.info('自动化任务完成。');
         // 任务完成后自动禁用脚本
-        settings.enabled = false;
-        replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
+        const currentSettings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
+        if (currentSettings.enabled) {
+            currentSettings.enabled = false;
+            replaceVariables(_.cloneDeep(currentSettings), { type: 'script', script_id: getScriptId() });
+        }
     }
   }
 }
 
-function onUserFirstMessage(message_id: number) {
+function onUserFirstMessage(_message_id: number) {
     const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
-    const firstMessage = getChatMessages(0)[0];
-
+    const allMessages = getChatMessages('0-{{lastMessageId}}');
+    
     // 只有在脚本启用且是用户发送的第一条消息时才初始化
-    if (settings.enabled && getChatMessages('0-{{lastMessageId}}').length === 1 && firstMessage.role === 'user') {
+    if (settings.enabled && allMessages.length === 1 && allMessages[0].role === 'user') {
         remainingReplies = settings.maxReplies;
         toastr.info(`自动化脚本已启动，将代替用户回复 ${remainingReplies} 次。`);
     }
 }
-
 
 export function start() {
   // 监听 AI 回复

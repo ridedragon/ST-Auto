@@ -1,6 +1,6 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
-import App from '@/auto_runner/app.vue';
+import App from './app.vue';
 
 const app = createApp(App);
 

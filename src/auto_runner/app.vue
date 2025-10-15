@@ -39,20 +39,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { z } from 'zod';
 import _ from 'lodash';
-
-// 1. 定义 Zod Schema
-const SettingsSchema = z.object({
-  enabled: z.boolean().default(false),
-  prompt: z.string().default(''),
-  apiUrl: z.string().default(''),
-  apiKey: z.string().default(''),
-  temperature: z.number().min(0).max(2).default(0.7),
-  maxReplies: z.number().min(1).default(10),
-});
-
-type Settings = z.infer<typeof SettingsSchema>;
+import { SettingsSchema, type Settings } from './types';
 
 const settings = ref<Settings>(SettingsSchema.parse({}));
 
@@ -77,7 +65,8 @@ const saveSettings = () => {
     const validatedSettings = SettingsSchema.parse(settings.value);
     replaceVariables(_.cloneDeep(validatedSettings), { type: 'script', script_id: getScriptId() });
     toastr.success('设置已成功保存！');
-  } catch (error) {
+  } catch (e: any) {
+    const error = e as Error;
     console.error('保存设置失败:', error);
     toastr.error(`保存失败: ${error.message}`);
   }

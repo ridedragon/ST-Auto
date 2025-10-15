@@ -1,5 +1,5 @@
-import { start } from '@/auto_runner/core';
-import { initPanel, destroyPanel } from '@/auto_runner/panel';
+import { start } from './core';
+import { initPanel, destroyPanel } from './panel';
 
 $(() => {
   // 初始化设置面板
