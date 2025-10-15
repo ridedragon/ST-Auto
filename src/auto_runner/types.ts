@@ -9,6 +9,7 @@ export const SettingsSchema = z.object({
   temperature: z.number().min(0).max(2).default(0.7),
   top_p: z.number().min(0).max(1).default(1),
   top_k: z.number().min(0).default(40),
+  max_tokens: z.number().min(1).default(1024),
   maxReplies: z.number().min(1).default(10),
 });
 

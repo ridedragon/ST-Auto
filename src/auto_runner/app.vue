@@ -47,6 +47,9 @@
 
                 <label for="auto_runner_top_k">Top K: {{ settings.top_k }}</label>
                 <input id="auto_runner_top_k" v-model.number="settings.top_k" type="range" step="1" min="0" max="100" />
+
+                <label for="auto_runner_max_tokens">Max Tokens: {{ settings.max_tokens }}</label>
+                <input id="auto_runner_max_tokens" v-model.number="settings.max_tokens" type="number" class="text_pole" min="1" />
             </div>
 
             <hr />
@@ -86,7 +89,6 @@ watch(settings, (newSettings) => {
   try {
     const validatedSettings = SettingsSchema.parse(newSettings);
     replaceVariables(_.cloneDeep(validatedSettings), { type: 'script', script_id: getScriptId() });
-    toastr.success('设置已自动保存！');
   } catch (e: any) {
     const error = e as Error;
     console.error('自动保存设置失败:', error);

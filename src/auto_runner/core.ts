@@ -34,8 +34,9 @@ async function onMessageReceived(message_id: number) {
       custom_api: {
         apiurl: settings.apiUrl,
         key: settings.apiKey,
-        model: 'claude-3-opus-20240229', // 暂时硬编码，未来可以加入设置
+        model: settings.model,
         temperature: settings.temperature,
+        max_tokens: settings.max_tokens,
       } as any, // HACK: 绕过类型检查
       should_stream: false,
     });
@@ -73,12 +74,11 @@ async function onMessageReceived(message_id: number) {
   }
 }
 
-function onUserFirstMessage(_message_id: number) {
+function onUserMessage() {
     const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
-    const allMessages = getChatMessages('0-{{lastMessageId}}');
     
-    // 只有在脚本启用且是用户发送的第一条消息时才初始化
-    if (settings.enabled && allMessages.length === 1 && allMessages[0].role === 'user') {
+    // 当用户发送消息且脚本启用时，初始化或重置回复计数器
+    if (settings.enabled) {
         remainingReplies = settings.maxReplies;
         toastr.info(`自动化脚本已启动，将代替用户回复 ${remainingReplies} 次。`);
     }
@@ -87,8 +87,8 @@ function onUserFirstMessage(_message_id: number) {
 export function start() {
   // 监听 AI 回复
   eventOn(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
-  // 监听用户发送的第一条消息以启动计数器
-  eventOn(tavern_events.MESSAGE_SENT, onUserFirstMessage);
+  // 监听用户发送消息以启动计数器
+  eventOn(tavern_events.MESSAGE_SENT, onUserMessage);
   
   console.log('自动化运行脚本已启动并监听事件。');
 }
