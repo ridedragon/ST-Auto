@@ -424,12 +424,22 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
         return callback();
       }
 
-      // 如果是项目内部的别名路径，则正常打包，不作为外部依赖
-      if (request.startsWith('@/')) {
+      // 检查请求是否是项目内部的模块
+      const isInternalModule = () => {
+        const extensions = ['.ts', '.js', '.vue', '.json'];
+        // 检查原始请求
+        if (extensions.some(ext => fs.existsSync(path.resolve(context, `${request}${ext}`)))) return true;
+        // 检查不带扩展名的请求
+        if (fs.existsSync(path.resolve(context, request))) return true;
+        return false;
+      };
+
+      if (isInternalModule()) {
         return callback();
       }
-
+      
       if (
+        request.startsWith('@/') || // 保留这个以防万一，但主要依赖上面的逻辑
         request.startsWith('-') ||
         request.startsWith('.') ||
         request.startsWith('/') ||
