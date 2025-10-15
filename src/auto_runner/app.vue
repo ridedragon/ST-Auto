@@ -1,142 +1,140 @@
-<template>
-    <div class="inline-drawer">
-        <div class="inline-drawer-toggle inline-drawer-header">
-            <b>自动化运行脚本设置</b>
-            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
-        </div>
-
-        <div class="inline-drawer-content">
-            <div class="flex-container flexFlowColumn">
-                <label class="checkbox_label" for="auto_runner_enabled">
-                    <input id="auto_runner_enabled" v-model="settings.enabled" type="checkbox" />
-                    <span>启用脚本</span>
-                </label>
-            </div>
-
-            <hr />
-
-            <div class="flex-container flexFlowColumn">
-                <div><strong>提示词设置</strong></div>
-                <textarea v-model="settings.prompt" class="text_pole" placeholder="输入给副AI的指令..."></textarea>
-            </div>
-
-            <hr />
-
-            <div class="flex-container flexFlowColumn">
-                <div><strong>API 调用设置</strong></div>
-                <label for="auto_runner_api_url">API 地址</label>
-                <input id="auto_runner_api_url" v-model="settings.apiUrl" type="text" class="text_pole" placeholder="http://localhost:1234/v1" />
-
-                <label for="auto_runner_api_key">API 密钥</label>
-                <input id="auto_runner_api_key" v-model="settings.apiKey" type="password" class="text_pole" placeholder="留空表示无需密钥" />
-
-                <div class="flex-container">
-                    <button class="menu_button wide-button" @click="getModels">获取模型</button>
-                </div>
-                <label for="auto_runner_model">模型</label>
-                <select id="auto_runner_model" v-model="settings.model" class="text_pole">
-                    <option v-if="!settings.model" value="">请先获取模型</option>
-                    <option v-for="model in models" :key="model" :value="model">{{ model }}</option>
-                </select>
-
-                <label for="auto_runner_temperature">Temperature: {{ settings.temperature }}</label>
-                <input id="auto_runner_temperature" v-model.number="settings.temperature" type="range" step="0.1" min="0" max="2" />
-
-                <label for="auto_runner_top_p">Top P: {{ settings.top_p }}</label>
-                <input id="auto_runner_top_p" v-model.number="settings.top_p" type="range" step="0.05" min="0" max="1" />
-
-                <label for="auto_runner_top_k">Top K: {{ settings.top_k }}</label>
-                <input id="auto_runner_top_k" v-model.number="settings.top_k" type="range" step="1" min="0" max="100" />
-
-                <label for="auto_runner_max_tokens">Max Tokens: {{ settings.max_tokens }}</label>
-                <input id="auto_runner_max_tokens" v-model.number="settings.max_tokens" type="number" class="text_pole" min="1" />
-            </div>
-
-            <hr />
-
-            <div class="flex-container flexFlowColumn">
-                <div><strong>自动化设置</strong></div>
-                <label for="auto_runner_total_replies">总回复次数</label>
-                <input id="auto_runner_total_replies" v-model.number="settings.totalReplies" type="number" class="text_pole" min="1" />
-                <label for="auto_runner_remaining_replies">剩余回复次数</label>
-                <input id="auto_runner_remaining_replies" v-model.number="settings.remainingReplies" type="number" class="text_pole" min="0" />
-            </div>
-        </div>
-    </div>
-</template>
-
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
+import { type Settings, saveSettings } from './settings';
 import _ from 'lodash';
-import { SettingsSchema, type Settings } from './types';
 
-const settings = ref<Settings>(SettingsSchema.parse({}));
+// Define props passed from panel.ts
+const props = defineProps<{
+  settings: Settings
+}>();
+
+// Create a local, reactive copy of the settings
+const localSettings = ref<Settings>(_.cloneDeep(props.settings));
 const models = ref<string[]>([]);
+const isFetching = ref(false);
 
-// 加载设置
-onMounted(() => {
+// Function to fetch available models from the API
+async function fetchModels() {
+  isFetching.value = true;
+  toastr.info('正在获取模型列表...', '[AutoRunner]');
   try {
-    const savedSettings = getVariables({ type: 'script', script_id: getScriptId() });
-    settings.value = SettingsSchema.parse(savedSettings);
+    // Assumes SillyTavern's global object is available to get completion providers
+    const providers = SillyTavern.completion_providers;
+    const modelList: string[] = [];
+    for (const provider of providers) {
+        if (provider.models) {
+            modelList.push(...provider.models);
+        }
+    }
+    models.value = _.uniq(modelList).sort();
+
+    if (models.value.length > 0) {
+        toastr.success('模型列表获取成功！', '[AutoRunner]');
+    } else {
+        toastr.warning('未找到可用模型。请检查您的SillyTavern API设置。', '[AutoRunner]');
+    }
   } catch (error) {
-    console.error('加载设置失败:', error);
-    settings.value = SettingsSchema.parse({});
+    console.error('获取模型列表时出错:', error);
+    toastr.error(`获取模型失败: ${(error as Error).message}`, '[AutoRunner] 错误');
+  } finally {
+    isFetching.value = false;
   }
-});
+}
 
-// 监视设置变化并自动保存
-watch(settings, (newSettings) => {
-  try {
-    const validatedSettings = SettingsSchema.parse(newSettings);
-    replaceVariables(_.cloneDeep(validatedSettings), { type: 'script', script_id: getScriptId() });
-  } catch (e: any) {
-    const error = e as Error;
-    console.error('自动保存设置失败:', error);
-  }
+// Watch for changes in localSettings and save them
+watch(localSettings, (newSettings) => {
+  saveSettings(newSettings);
 }, { deep: true });
 
-
-// 获取模型列表
-const getModels = async () => {
-    if (!settings.value.apiUrl) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`${settings.value.apiUrl}/models`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        // 根据常见的 API 响应格式，模型列表在 data.data 中
-        models.value = data.data.map((model: any) => model.id);
-        toastr.success('模型列表已获取');
-    } catch (error) {
-        console.error('获取模型列表失败:', error);
-    }
-};
-
+// Fetch models when the component is mounted
+onMounted(() => {
+  fetchModels();
+});
 </script>
 
-<style lang="scss" scoped>
-.wide-button {
-  width: 100%;
-}
+<template>
+  <div class="auto-runner-settings card">
+    <div class="card-header">
+      <h4 class="mb-0">Auto Runner 脚本设置</h4>
+    </div>
+    <div class="card-body">
+      <div class="form-group">
+        <label for="model">副AI模型</label>
+        <div class="input-group">
+          <select id="model" v-model="localSettings.selectedModel" class="form-control">
+            <option disabled value="">{{ isFetching ? '加载中...' : '请选择一个模型' }}</option>
+            <option v-for="model in models" :key="model" :value="model">{{ model }}</option>
+          </select>
+          <div class="input-group-append">
+            <button @click="fetchModels" class="btn btn-primary" :disabled="isFetching">
+              {{ isFetching ? '正在获取...' : '刷新模型' }}
+            </button>
+          </div>
+        </div>
+        <small class="form-text text-muted">选择一个模型后，脚本将自动在每条消息后调用它。</small>
+      </div>
 
-label {
-  margin-top: 10px;
-  margin-bottom: 5px;
-  font-size: 0.9em;
-  color: #ccc;
-}
+      <div class="form-group">
+        <label for="regex">内容处理正则表达式</label>
+        <textarea id="regex" v-model="localSettings.regex" class="form-control" rows="8"></textarea>
+        <small class="form-text text-muted">
+          在将对话历史发送给副AI之前，将使用此正则表达式（全局、多行模式）清除每条消息的内容。
+        </small>
+      </div>
+    </div>
+  </div>
+</template>
 
-hr {
-  border: none;
-  border-top: 1px solid var(--bg2);
-  margin: 15px 0;
+<style scoped>
+.auto-runner-settings {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: .25rem;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
 }
-
-input[type='range'] {
-  width: 100%;
+.card-header {
+  background-color: #e9ecef;
+  padding: .75rem 1.25rem;
+  margin-bottom: 0;
+  border-bottom: 1px solid #dee2e6;
+}
+.form-group {
+  margin-bottom: 1rem;
+}
+.input-group {
+  display: flex;
+}
+.form-control {
+  flex-grow: 1;
+}
+.input-group-append {
+  margin-left: -1px;
+}
+.btn {
+    display: inline-block;
+    font-weight: 400;
+    color: #212529;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    background-color: transparent;
+    border: 1px solid transparent;
+    padding: .375rem .75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: .25rem;
+}
+.btn-primary {
+    color: #fff;
+    background-color: #007bff;
+    border-color: #007bff;
+}
+.btn:disabled {
+    opacity: .65;
 }
 </style>
