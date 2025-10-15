@@ -34,10 +34,8 @@ async function onMessageReceived(message_id: number) {
       custom_api: {
         apiurl: settings.apiUrl,
         key: settings.apiKey,
-        model: settings.model,
+        model: 'claude-3-opus-20240229', // 暂时硬编码，未来可以加入设置
         temperature: settings.temperature,
-        top_p: settings.top_p,
-        top_k: settings.top_k,
       } as any, // HACK: 绕过类型检查
       should_stream: false,
     });
@@ -47,17 +45,16 @@ async function onMessageReceived(message_id: number) {
     }
 
     // 5. 将指令作为用户消息发送
-    await createChatMessages([
-      {
-        role: 'user',
-        name: SillyTavern.name1, // 使用当前用户名
-        message: nextUserInstruction,
-      },
-    ]);
+    await createChatMessages([{
+      role: 'user',
+      name: SillyTavern.name1, // 使用当前用户名
+      message: nextUserInstruction,
+    }]);
 
     // 6. 更新状态
     remainingReplies--;
     toastr.success(`指令已发送，剩余 ${remainingReplies} 次。`);
+
   } catch (e: any) {
     const error = e as Error;
     console.error('自动化脚本运行出错:', error);
@@ -65,28 +62,26 @@ async function onMessageReceived(message_id: number) {
   } finally {
     isRunning = false;
     if (remainingReplies <= 0) {
-      toastr.info('自动化任务完成。');
-      // 任务完成后自动禁用脚本
-      const currentSettings: Settings = SettingsSchema.parse(
-        getVariables({ type: 'script', script_id: getScriptId() }) || {},
-      );
-      if (currentSettings.enabled) {
-        currentSettings.enabled = false;
-        replaceVariables(_.cloneDeep(currentSettings), { type: 'script', script_id: getScriptId() });
-      }
+        toastr.info('自动化任务完成。');
+        // 任务完成后自动禁用脚本
+        const currentSettings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
+        if (currentSettings.enabled) {
+            currentSettings.enabled = false;
+            replaceVariables(_.cloneDeep(currentSettings), { type: 'script', script_id: getScriptId() });
+        }
     }
   }
 }
 
 function onUserFirstMessage(_message_id: number) {
-  const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
-  const allMessages = getChatMessages('0-{{lastMessageId}}');
-
-  // 只有在脚本启用且是用户发送的第一条消息时才初始化
-  if (settings.enabled && allMessages.length === 1 && allMessages[0].role === 'user') {
-    remainingReplies = settings.maxReplies;
-    toastr.info(`自动化脚本已启动，将代替用户回复 ${remainingReplies} 次。`);
-  }
+    const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
+    const allMessages = getChatMessages('0-{{lastMessageId}}');
+    
+    // 只有在脚本启用且是用户发送的第一条消息时才初始化
+    if (settings.enabled && allMessages.length === 1 && allMessages[0].role === 'user') {
+        remainingReplies = settings.maxReplies;
+        toastr.info(`自动化脚本已启动，将代替用户回复 ${remainingReplies} 次。`);
+    }
 }
 
 export function start() {
@@ -94,6 +89,6 @@ export function start() {
   eventOn(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
   // 监听用户发送的第一条消息以启动计数器
   eventOn(tavern_events.MESSAGE_SENT, onUserFirstMessage);
-
+  
   console.log('自动化运行脚本已启动并监听事件。');
 }

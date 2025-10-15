@@ -1,47 +1,39 @@
 <template>
-  <div class="inline-drawer">
-    <div class="inline-drawer-toggle inline-drawer-header">
-      <b>Auto Runner</b>
-      <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
-    </div>
-    <div class="inline-drawer-content">
-      <label>
-        <input v-model="settings.enabled" type="checkbox" />
+  <div class="auto-runner-settings">
+    <h2>自动化运行脚本设置</h2>
+
+    <div class="setting-group">
+      <label class="toggle-switch">
         启用脚本
+        <input type="checkbox" v-model="settings.enabled" />
+        <span class="slider"></span>
       </label>
-      <hr />
+    </div>
+
+    <div class="setting-group">
+      <h3>提示词设置</h3>
       <textarea v-model="settings.prompt" placeholder="输入给副AI的指令..."></textarea>
-      <hr />
-      <input v-model="settings.apiUrl" type="text" placeholder="API URL" />
-      <input v-model="settings.apiKey" type="password" placeholder="API 密钥" />
-      <br />
-      <button @click="fetchModels">获取模型</button>
-      <select v-model="settings.model">
-        <option v-for="model in settings.models" :key="model" :value="model">{{ model }}</option>
-      </select>
-      <hr />
+    </div>
+
+    <div class="setting-group">
+      <h3>API 调用设置</h3>
+      <input type="text" v-model="settings.apiUrl" placeholder="API URL" />
+      <input type="password" v-model="settings.apiKey" placeholder="API 密钥" />
       <label>
         Temperature:
-        <input v-model="settings.temperature" type="number" step="0.1" min="0" max="2" />
+        <input type="number" v-model="settings.temperature" step="0.1" min="0" max="2" />
       </label>
-      <br />
-      <label>
-        Top P:
-        <input v-model="settings.top_p" type="number" step="0.1" min="0" max="1" />
-      </label>
-      <br />
-      <label>
-        Top K:
-        <input v-model="settings.top_k" type="number" min="0" />
-      </label>
-      <hr />
+    </div>
+
+    <div class="setting-group">
+      <h3>自动化设置</h3>
       <label>
         最大回复次数:
-        <input v-model="settings.maxReplies" type="number" min="1" />
+        <input type="number" v-model="settings.maxReplies" min="1" />
       </label>
-      <hr />
-      <button @click="saveSettings">保存设置</button>
     </div>
+
+    <button @click="saveSettings">保存设置</button>
   </div>
 </template>
 
@@ -52,50 +44,24 @@ import { SettingsSchema, type Settings } from './types';
 
 const settings = ref<Settings>(SettingsSchema.parse({}));
 
-const fetchModels = async () => {
-  if (!settings.value.apiUrl) {
-    toastr.error('请先填写 API URL');
-    return;
-  }
-  try {
-    const response = await fetch(`${settings.value.apiUrl}/v1/models`, {
-      headers: {
-        Authorization: `Bearer ${settings.value.apiKey}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    const models = data.data.map((model: any) => model.id);
-    settings.value.models = models;
-    if (models.length > 0 && !settings.value.model) {
-      settings.value.model = models[0];
-    }
-    toastr.success('模型列表已获取');
-  } catch (error) {
-    console.error('获取模型列表失败:', error);
-    toastr.error('获取模型列表失败');
-  }
-};
-
+// 2. 加载设置
 onMounted(() => {
   try {
     const savedSettings = getVariables({ type: 'script', script_id: getScriptId() });
     settings.value = SettingsSchema.parse(savedSettings);
     toastr.info('设置已加载。');
-    if (settings.value.apiUrl && settings.value.models.length === 0) {
-      fetchModels();
-    }
   } catch (error) {
     console.error('加载设置失败:', error);
+    // 如果解析失败，Zod 的 default() 会提供默认值
     settings.value = SettingsSchema.parse({});
     toastr.warning('无法加载保存的设置，已使用默认设置。');
   }
 });
 
+// 3. 保存设置
 const saveSettings = () => {
   try {
+    // 验证当前设置是否符合 schema
     const validatedSettings = SettingsSchema.parse(settings.value);
     replaceVariables(_.cloneDeep(validatedSettings), { type: 'script', script_id: getScriptId() });
     toastr.success('设置已成功保存！');
@@ -108,19 +74,101 @@ const saveSettings = () => {
 </script>
 
 <style lang="scss" scoped>
-.inline-drawer-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.auto-runner-settings {
+  padding: 1rem;
+  background-color: #2a2a2e;
+  color: #f0f0f0;
+  border-radius: 8px;
+  font-family: sans-serif;
 }
-input,
-textarea,
-select,
-button {
+
+h2, h3 {
+  color: #fff;
+  border-bottom: 1px solid #444;
+  padding-bottom: 0.5rem;
+  margin-top: 1rem;
+}
+
+.setting-group {
+  margin-bottom: 1rem;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+textarea {
   width: 100%;
+  padding: 0.5rem;
+  background-color: #3a3a3e;
+  border: 1px solid #555;
+  color: #f0f0f0;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
   box-sizing: border-box;
 }
+
 textarea {
-  min-height: 80px;
+  min-height: 100px;
+  resize: vertical;
+}
+
+button {
+  background-color: #4a90e2;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #357abd;
+  }
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+
+    &:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+  }
+
+  input:checked + .slider {
+    background-color: #4a90e2;
+  }
+
+  input:checked + .slider:before {
+    transform: translateX(26px);
+  }
 }
 </style>

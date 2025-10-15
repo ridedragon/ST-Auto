@@ -4,7 +4,7 @@ import { initPanel, destroyPanel } from './panel';
 $(() => {
   // 初始化设置面板
   initPanel();
-
+  
   // 启动核心自动化逻辑
   start();
 });
