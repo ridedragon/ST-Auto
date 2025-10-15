@@ -34,8 +34,10 @@ async function onMessageReceived(message_id: number) {
       custom_api: {
         apiurl: settings.apiUrl,
         key: settings.apiKey,
-        model: 'claude-3-opus-20240229', // 暂时硬编码，未来可以加入设置
+        model: settings.model,
         temperature: settings.temperature,
+        top_p: settings.top_p,
+        top_k: settings.top_k,
       } as any, // HACK: 绕过类型检查
       should_stream: false,
     });
