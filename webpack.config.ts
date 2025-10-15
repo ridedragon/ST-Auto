@@ -424,6 +424,11 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
         return callback();
       }
 
+      // 如果是项目内部的别名路径，则正常打包，不作为外部依赖
+      if (request.startsWith('@/')) {
+        return callback();
+      }
+
       if (
         request.startsWith('-') ||
         request.startsWith('.') ||
