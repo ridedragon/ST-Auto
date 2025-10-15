@@ -21,7 +21,7 @@ async function onMessageReceived(message_id: number) {
   }
 
   isRunning = true;
-  toastr.info(`自动化脚本介入，剩余 ${remainingReplies} 次回复。`);
+  toastr.info(`自动执行: ${settings.maxReplies - remainingReplies + 1}/${settings.maxReplies}`);
 
   try {
     // 3. 获取聊天上下文
@@ -54,7 +54,6 @@ async function onMessageReceived(message_id: number) {
 
     // 6. 更新状态
     remainingReplies--;
-    toastr.success(`指令已发送，剩余 ${remainingReplies} 次。`);
 
   } catch (e: any) {
     const error = e as Error;
@@ -80,7 +79,6 @@ function onUserMessage() {
     // 当用户发送消息且脚本启用时，初始化或重置回复计数器
     if (settings.enabled) {
         remainingReplies = settings.maxReplies;
-        toastr.info(`自动化脚本已启动，将代替用户回复 ${remainingReplies} 次。`);
     }
 }
 

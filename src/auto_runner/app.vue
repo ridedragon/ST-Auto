@@ -31,7 +31,7 @@
                 <input id="auto_runner_api_key" v-model="settings.apiKey" type="password" class="text_pole" placeholder="留空表示无需密钥" />
 
                 <div class="flex-container">
-                    <button class="menu_button" @click="getModels">获取模型</button>
+                    <button class="menu_button wide-button" @click="getModels">获取模型</button>
                 </div>
                 <label for="auto_runner_model">模型</label>
                 <select id="auto_runner_model" v-model="settings.model" class="text_pole">
@@ -76,11 +76,9 @@ onMounted(() => {
   try {
     const savedSettings = getVariables({ type: 'script', script_id: getScriptId() });
     settings.value = SettingsSchema.parse(savedSettings);
-    toastr.info('设置已加载。');
   } catch (error) {
     console.error('加载设置失败:', error);
     settings.value = SettingsSchema.parse({});
-    toastr.warning('无法加载保存的设置，已使用默认设置。');
   }
 });
 
@@ -92,7 +90,6 @@ watch(settings, (newSettings) => {
   } catch (e: any) {
     const error = e as Error;
     console.error('自动保存设置失败:', error);
-    toastr.error(`自动保存失败: ${error.message}`);
   }
 }, { deep: true });
 
@@ -100,7 +97,6 @@ watch(settings, (newSettings) => {
 // 获取模型列表
 const getModels = async () => {
     if (!settings.value.apiUrl) {
-        toastr.error('请先填写 API 地址');
         return;
     }
 
@@ -115,13 +111,16 @@ const getModels = async () => {
         toastr.success('模型列表已获取');
     } catch (error) {
         console.error('获取模型列表失败:', error);
-        toastr.error('获取模型列表失败，请检查 API 地址和网络连接。');
     }
 };
 
 </script>
 
 <style lang="scss" scoped>
+.wide-button {
+  width: 100%;
+}
+
 label {
   margin-top: 10px;
   margin-bottom: 5px;
