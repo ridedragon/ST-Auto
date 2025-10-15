@@ -15,13 +15,27 @@ function teleportStyle() {
 }
 
 export function initPanel() {
-    teleportStyle();
+    try {
+        toastr.info('[AutoRunner] 开始初始化面板...');
+        teleportStyle();
 
-    const $app = $('<div>').attr('script_id', getScriptId());
-    // 将我们的设置面板注入到扩展设置区域
-    $('#extensions_settings2').append($app);
+        const $container = $('#extensions_settings2');
+        if ($container.length === 0) {
+            toastr.error('找不到注入点 #extensions_settings2，无法创建界面。', '[AutoRunner] 错误');
+            return;
+        }
+        toastr.success('成功找到注入点 #extensions_settings2。', '[AutoRunner]');
 
-    app.use(createPinia()).mount($app[0]);
+        const $app = $('<div>').attr('script_id', getScriptId());
+        $container.append($app);
+        toastr.info('Vue 容器已注入页面。', '[AutoRunner]');
+
+        app.use(createPinia()).mount($app[0]);
+        toastr.success('Vue 应用已成功挂载！', '[AutoRunner]');
+    } catch (error) {
+        console.error('[AutoRunner] 初始化面板时出错:', error);
+        toastr.error(`初始化面板时出错: ${error.message}`, '[AutoRunner] 致命错误');
+    }
 }
 
 function deteleportStyle() {
