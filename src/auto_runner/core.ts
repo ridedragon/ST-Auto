@@ -8,6 +8,9 @@ async function onMessageReceived(message_id: number) {
     return;
   }
 
+  // 增加一个短暂的延迟，以确保消息已完全注册
+  await new Promise(resolve => setTimeout(resolve, 100));
+
   // 1. 获取最新设置和消息
   const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
   const lastMessage = getChatMessages(-1)[0];
