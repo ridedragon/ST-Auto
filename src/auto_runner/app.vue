@@ -119,93 +119,7 @@ const getModels = async () => {
 
 </script>
 
-<style lang="scss">
-/* 借鉴自酒馆和MVU的样式 */
-.inline-drawer {
-  background-color: #2a2a2e;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  color: #f0f0f0;
-
-  .inline-drawer-header {
-    padding: 10px 15px;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: bold;
-    border-bottom: 1px solid #444;
-  }
-
-  .inline-drawer-icon {
-    transition: transform 0.3s;
-  }
-
-  .inline-drawer-icon.down {
-    transform: rotate(0deg);
-  }
-
-  .inline-drawer-icon.up {
-    transform: rotate(180deg);
-  }
-
-  .inline-drawer-content {
-    padding: 15px;
-    display: block; // 默认展开
-  }
-}
-
-.flex-container {
-  display: flex;
-  gap: 10px;
-}
-
-.flexFlowColumn {
-  flex-direction: column;
-}
-
-.text_pole {
-  width: 100%;
-  padding: 0.5rem;
-  background-color: #3a3a3e;
-  border: 1px solid #555;
-  color: #f0f0f0;
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
-  box-sizing: border-box;
-}
-
-textarea.text_pole {
-  min-height: 100px;
-  resize: vertical;
-}
-
-.checkbox_label {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-
-  input {
-    margin-right: 8px;
-  }
-}
-
-.menu_button {
-  background-color: #4a90e2;
-  color: white;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.2s;
-  text-align: center;
-
-  &:hover {
-    background-color: #357abd;
-  }
-}
-
+<style lang="scss" scoped>
 label {
   margin-top: 10px;
   margin-bottom: 5px;
@@ -215,11 +129,11 @@ label {
 
 hr {
   border: none;
-  border-top: 1px solid #444;
+  border-top: 1px solid var(--bg2);
   margin: 15px 0;
 }
 
-input[type="range"] {
+input[type='range'] {
   width: 100%;
 }
 </style>
