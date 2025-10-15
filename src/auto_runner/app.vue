@@ -56,8 +56,10 @@
 
             <div class="flex-container flexFlowColumn">
                 <div><strong>自动化设置</strong></div>
-                <label for="auto_runner_max_replies">最大回复次数</label>
-                <input id="auto_runner_max_replies" v-model.number="settings.maxReplies" type="number" class="text_pole" min="1" />
+                <label for="auto_runner_total_replies">总回复次数</label>
+                <input id="auto_runner_total_replies" v-model.number="settings.totalReplies" type="number" class="text_pole" min="1" />
+                <label for="auto_runner_remaining_replies">剩余回复次数</label>
+                <input id="auto_runner_remaining_replies" v-model.number="settings.remainingReplies" type="number" class="text_pole" min="0" />
             </div>
         </div>
     </div>

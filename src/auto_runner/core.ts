@@ -1,15 +1,10 @@
 import _ from 'lodash';
 import { SettingsSchema, type Settings } from './types';
 
-// 存储当前剩余回复次数的状态
-let remainingReplies = 0;
 let isRunning = false;
 
 async function onMessageReceived(message_id: number) {
-  console.log(`[AutoRunner] GENERATION_ENDED 事件触发，message_id: ${message_id}`);
-
   if (isRunning) {
-    console.log('[AutoRunner] 脚本正在运行中，跳过本次触发。');
     return;
   }
 
@@ -18,26 +13,12 @@ async function onMessageReceived(message_id: number) {
   const lastMessage = getChatMessages(-1)[0];
 
   // 2. 检查触发条件
-  if (!settings.enabled) {
-    console.log('[AutoRunner] 脚本未启用，跳过。');
-    return;
-  }
-  if (!lastMessage) {
-    console.log('[AutoRunner] 未获取到最后一条消息，跳过。');
-    return;
-  }
-  if (lastMessage.role !== 'assistant') {
-    console.log(`[AutoRunner] 最后一条消息的角色是 "${lastMessage.role}" 而不是 "assistant"，跳过。`);
-    return;
-  }
-  if (remainingReplies <= 0) {
-    console.log('[AutoRunner] 剩余回复次数为0，跳过。');
+  if (!settings.enabled || !lastMessage || lastMessage.role !== 'assistant' || settings.remainingReplies <= 0) {
     return;
   }
 
-  console.log('[AutoRunner] 所有条件满足，开始执行自动化流程。');
   isRunning = true;
-  toastr.info(`自动执行: ${settings.maxReplies - remainingReplies + 1}/${settings.maxReplies}`);
+  toastr.info(`自动执行: ${settings.totalReplies - settings.remainingReplies + 1}/${settings.totalReplies}`);
 
   try {
     // 3. 获取聊天上下文
@@ -69,7 +50,8 @@ async function onMessageReceived(message_id: number) {
     }]);
 
     // 6. 更新状态
-    remainingReplies--;
+    settings.remainingReplies--;
+    replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
 
   } catch (e: any) {
     const error = e as Error;
@@ -77,14 +59,13 @@ async function onMessageReceived(message_id: number) {
     toastr.error(`脚本错误: ${error.message}`);
   } finally {
     isRunning = false;
-    if (remainingReplies <= 0) {
+    // 再次获取最新设置以检查是否完成
+    const finalSettings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
+    if (finalSettings.remainingReplies <= 0 && finalSettings.enabled) {
         toastr.info('自动化任务完成。');
         // 任务完成后自动禁用脚本
-        const currentSettings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
-        if (currentSettings.enabled) {
-            currentSettings.enabled = false;
-            replaceVariables(_.cloneDeep(currentSettings), { type: 'script', script_id: getScriptId() });
-        }
+        finalSettings.enabled = false;
+        replaceVariables(_.cloneDeep(finalSettings), { type: 'script', script_id: getScriptId() });
     }
   }
 }
@@ -92,9 +73,10 @@ async function onMessageReceived(message_id: number) {
 function onUserMessage() {
     const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
     
-    // 当用户发送消息且脚本启用时，初始化或重置回复计数器
+    // 当用户发送消息且脚本启用时，将总次数赋给剩余次数
     if (settings.enabled) {
-        remainingReplies = settings.maxReplies;
+        settings.remainingReplies = settings.totalReplies;
+        replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
     }
 }
 
