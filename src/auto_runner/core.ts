@@ -57,48 +57,48 @@ async function onMessageReceived(message_id: number) {
     }
 
     // 5. 将指令作为用户消息发送
-    await createChatMessages([
-      {
-        role: 'user',
-        name: SillyTavern.name1, // 使用当前用户名
-        message: nextUserInstruction,
-      },
-    ]);
+    await createChatMessages([{
+      role: 'user',
+      name: SillyTavern.name1, // 使用当前用户名
+      message: nextUserInstruction,
+    }]);
 
     // 6. 更新状态
     remainingReplies--;
     // 可以在这里将 remainingReplies 保存到变量中，如果需要跨会话保持状态
     toastr.success(`指令已发送，剩余 ${remainingReplies} 次。`);
+
   } catch (error) {
     console.error('自动化脚本运行出错:', error);
     toastr.error(`脚本错误: ${error.message}`);
   } finally {
     isRunning = false;
     if (remainingReplies <= 0) {
-      toastr.info('自动化任务完成。');
-      // 任务完成后自动禁用脚本
-      settings.enabled = false;
-      replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
+        toastr.info('自动化任务完成。');
+        // 任务完成后自动禁用脚本
+        settings.enabled = false;
+        replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
     }
   }
 }
 
 function onUserFirstMessage(message_id: number) {
-  const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
-  const firstMessage = getChatMessages(0)[0];
+    const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
+    const firstMessage = getChatMessages(0)[0];
 
-  // 只有在脚本启用且是用户发送的第一条消息时才初始化
-  if (settings.enabled && getChatMessages('0-{{lastMessageId}}').length === 1 && firstMessage.role === 'user') {
-    remainingReplies = settings.maxReplies;
-    toastr.info(`自动化脚本已启动，将代替用户回复 ${remainingReplies} 次。`);
-  }
+    // 只有在脚本启用且是用户发送的第一条消息时才初始化
+    if (settings.enabled && getChatMessages('0-{{lastMessageId}}').length === 1 && firstMessage.role === 'user') {
+        remainingReplies = settings.maxReplies;
+        toastr.info(`自动化脚本已启动，将代替用户回复 ${remainingReplies} 次。`);
+    }
 }
+
 
 export function start() {
   // 监听 AI 回复
   eventOn(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
   // 监听用户发送的第一条消息以启动计数器
   eventOn(tavern_events.MESSAGE_SENT, onUserFirstMessage);
-
+  
   console.log('自动化运行脚本已启动并监听事件。');
 }

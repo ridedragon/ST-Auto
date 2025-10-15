@@ -93,8 +93,7 @@ const saveSettings = () => {
   font-family: sans-serif;
 }
 
-h2,
-h3 {
+h2, h3 {
   color: #fff;
   border-bottom: 1px solid #444;
   padding-bottom: 0.5rem;
@@ -105,9 +104,9 @@ h3 {
   margin-bottom: 1rem;
 }
 
-input[type='text'],
-input[type='password'],
-input[type='number'],
+input[type="text"],
+input[type="password"],
+input[type="number"],
 textarea {
   width: 100%;
   padding: 0.5rem;
@@ -159,18 +158,18 @@ button {
     right: 0;
     bottom: 0;
     background-color: #ccc;
-    transition: 0.4s;
+    transition: .4s;
     border-radius: 34px;
 
     &:before {
       position: absolute;
-      content: '';
+      content: "";
       height: 26px;
       width: 26px;
       left: 4px;
       bottom: 4px;
       background-color: white;
-      transition: 0.4s;
+      transition: .4s;
       border-radius: 50%;
     }
   }

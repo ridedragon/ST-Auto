@@ -320,7 +320,9 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
           configFile: path.join(__dirname, 'tsconfig.json'),
         }),
       ],
-      alias: {},
+      alias: {
+        '@': path.resolve(__dirname, 'src'),
+      },
     },
     plugins: (entry.html === undefined
       ? [new MiniCssExtractPlugin()]

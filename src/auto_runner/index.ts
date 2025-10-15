@@ -1,10 +1,10 @@
-import { start } from './core';
-import { initPanel, destroyPanel } from './panel';
+import { start } from '@/auto_runner/core';
+import { initPanel, destroyPanel } from '@/auto_runner/panel';
 
 $(() => {
   // 初始化设置面板
   initPanel();
-
+  
   // 启动核心自动化逻辑
   start();
 });
