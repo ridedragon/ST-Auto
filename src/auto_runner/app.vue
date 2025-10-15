@@ -1,41 +1,47 @@
 <template>
-  <div>
-    <label>
-      <input type="checkbox" v-model="settings.enabled" />
-      启用脚本
-    </label>
-    <hr />
-    <textarea v-model="settings.prompt" placeholder="输入给副AI的指令..."></textarea>
-    <hr />
-    <input type="text" v-model="settings.apiUrl" placeholder="API URL" />
-    <input type="password" v-model="settings.apiKey" placeholder="API 密钥" />
-    <br />
-    <button @click="fetchModels">获取模型</button>
-    <select v-model="settings.model">
-      <option v-for="model in settings.models" :key="model" :value="model">{{ model }}</option>
-    </select>
-    <hr />
-    <label>
-      Temperature:
-      <input type="number" v-model="settings.temperature" step="0.1" min="0" max="2" />
-    </label>
-    <br />
-    <label>
-      Top P:
-      <input type="number" v-model="settings.top_p" step="0.1" min="0" max="1" />
-    </label>
-    <br />
-    <label>
-      Top K:
-      <input type="number" v-model="settings.top_k" min="0" />
-    </label>
-    <hr />
-    <label>
-      最大回复次数:
-      <input type="number" v-model="settings.maxReplies" min="1" />
-    </label>
-    <hr />
-    <button @click="saveSettings">保存设置</button>
+  <div class="inline-drawer">
+    <div class="inline-drawer-toggle inline-drawer-header">
+      <b>Auto Runner</b>
+      <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+    </div>
+    <div class="inline-drawer-content">
+      <label>
+        <input v-model="settings.enabled" type="checkbox" />
+        启用脚本
+      </label>
+      <hr />
+      <textarea v-model="settings.prompt" placeholder="输入给副AI的指令..."></textarea>
+      <hr />
+      <input v-model="settings.apiUrl" type="text" placeholder="API URL" />
+      <input v-model="settings.apiKey" type="password" placeholder="API 密钥" />
+      <br />
+      <button @click="fetchModels">获取模型</button>
+      <select v-model="settings.model">
+        <option v-for="model in settings.models" :key="model" :value="model">{{ model }}</option>
+      </select>
+      <hr />
+      <label>
+        Temperature:
+        <input v-model="settings.temperature" type="number" step="0.1" min="0" max="2" />
+      </label>
+      <br />
+      <label>
+        Top P:
+        <input v-model="settings.top_p" type="number" step="0.1" min="0" max="1" />
+      </label>
+      <br />
+      <label>
+        Top K:
+        <input v-model="settings.top_k" type="number" min="0" />
+      </label>
+      <hr />
+      <label>
+        最大回复次数:
+        <input v-model="settings.maxReplies" type="number" min="1" />
+      </label>
+      <hr />
+      <button @click="saveSettings">保存设置</button>
+    </div>
   </div>
 </template>
 
@@ -102,13 +108,15 @@ const saveSettings = () => {
 </script>
 
 <style lang="scss" scoped>
-/* 移除所有样式以实现纯文本外观 */
-div {
+.inline-drawer-content {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-input, textarea, select, button {
+input,
+textarea,
+select,
+button {
   width: 100%;
   box-sizing: border-box;
 }
