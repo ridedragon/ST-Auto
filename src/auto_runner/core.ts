@@ -46,12 +46,9 @@ async function onMessageReceived(message_id: number) {
       throw new Error('副AI没有返回有效指令。');
     }
 
-    // 5. 将指令作为用户消息发送
-    await createChatMessages([{
-      role: 'user',
-      name: SillyTavern.name1, // 使用当前用户名
-      message: nextUserInstruction,
-    }]);
+    // 5. 将指令填入输入框并模拟点击发送
+    $('#send_textarea').val(nextUserInstruction);
+    $('#send_but').trigger('click');
 
     // 6. 更新状态
     settings.remainingReplies--;
