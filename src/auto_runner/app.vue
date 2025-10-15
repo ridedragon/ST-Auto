@@ -1,50 +1,74 @@
 <template>
-  <div class="auto-runner-settings">
-    <h2>自动化运行脚本设置</h2>
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>自动化运行脚本设置</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
 
-    <div class="setting-group">
-      <label class="toggle-switch">
-        启用脚本
-        <input type="checkbox" v-model="settings.enabled" />
-        <span class="slider"></span>
-      </label>
+        <div class="inline-drawer-content">
+            <div class="flex-container flexFlowColumn">
+                <label class="checkbox_label" for="auto_runner_enabled">
+                    <input id="auto_runner_enabled" v-model="settings.enabled" type="checkbox" />
+                    <span>启用脚本</span>
+                </label>
+            </div>
+
+            <hr />
+
+            <div class="flex-container flexFlowColumn">
+                <div><strong>提示词设置</strong></div>
+                <textarea v-model="settings.prompt" class="text_pole" placeholder="输入给副AI的指令..."></textarea>
+            </div>
+
+            <hr />
+
+            <div class="flex-container flexFlowColumn">
+                <div><strong>API 调用设置</strong></div>
+                <label for="auto_runner_api_url">API 地址</label>
+                <input id="auto_runner_api_url" v-model="settings.apiUrl" type="text" class="text_pole" placeholder="http://localhost:1234/v1" />
+
+                <label for="auto_runner_api_key">API 密钥</label>
+                <input id="auto_runner_api_key" v-model="settings.apiKey" type="password" class="text_pole" placeholder="留空表示无需密钥" />
+
+                <div class="flex-container">
+                    <button class="menu_button" @click="getModels">获取模型</button>
+                </div>
+                <label for="auto_runner_model">模型</label>
+                <select id="auto_runner_model" v-model="settings.model" class="text_pole">
+                    <option v-if="!settings.model" value="">请先获取模型</option>
+                    <option v-for="model in models" :key="model" :value="model">{{ model }}</option>
+                </select>
+
+                <label for="auto_runner_temperature">Temperature: {{ settings.temperature }}</label>
+                <input id="auto_runner_temperature" v-model.number="settings.temperature" type="range" step="0.1" min="0" max="2" />
+
+                <label for="auto_runner_top_p">Top P: {{ settings.top_p }}</label>
+                <input id="auto_runner_top_p" v-model.number="settings.top_p" type="range" step="0.05" min="0" max="1" />
+
+                <label for="auto_runner_top_k">Top K: {{ settings.top_k }}</label>
+                <input id="auto_runner_top_k" v-model.number="settings.top_k" type="range" step="1" min="0" max="100" />
+            </div>
+
+            <hr />
+
+            <div class="flex-container flexFlowColumn">
+                <div><strong>自动化设置</strong></div>
+                <label for="auto_runner_max_replies">最大回复次数</label>
+                <input id="auto_runner_max_replies" v-model.number="settings.maxReplies" type="number" class="text_pole" min="1" />
+            </div>
+        </div>
     </div>
-
-    <div class="setting-group">
-      <h3>提示词设置</h3>
-      <textarea v-model="settings.prompt" placeholder="输入给副AI的指令..."></textarea>
-    </div>
-
-    <div class="setting-group">
-      <h3>API 调用设置</h3>
-      <input type="text" v-model="settings.apiUrl" placeholder="API URL" />
-      <input type="password" v-model="settings.apiKey" placeholder="API 密钥" />
-      <label>
-        Temperature:
-        <input type="number" v-model="settings.temperature" step="0.1" min="0" max="2" />
-      </label>
-    </div>
-
-    <div class="setting-group">
-      <h3>自动化设置</h3>
-      <label>
-        最大回复次数:
-        <input type="number" v-model="settings.maxReplies" min="1" />
-      </label>
-    </div>
-
-    <button @click="saveSettings">保存设置</button>
-  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import _ from 'lodash';
 import { SettingsSchema, type Settings } from './types';
 
 const settings = ref<Settings>(SettingsSchema.parse({}));
+const models = ref<string[]>([]);
 
-// 2. 加载设置
+// 加载设置
 onMounted(() => {
   try {
     const savedSettings = getVariables({ type: 'script', script_id: getScriptId() });
@@ -52,123 +76,50 @@ onMounted(() => {
     toastr.info('设置已加载。');
   } catch (error) {
     console.error('加载设置失败:', error);
-    // 如果解析失败，Zod 的 default() 会提供默认值
     settings.value = SettingsSchema.parse({});
     toastr.warning('无法加载保存的设置，已使用默认设置。');
   }
 });
 
-// 3. 保存设置
-const saveSettings = () => {
+// 监视设置变化并自动保存
+watch(settings, (newSettings) => {
   try {
-    // 验证当前设置是否符合 schema
-    const validatedSettings = SettingsSchema.parse(settings.value);
+    const validatedSettings = SettingsSchema.parse(newSettings);
     replaceVariables(_.cloneDeep(validatedSettings), { type: 'script', script_id: getScriptId() });
-    toastr.success('设置已成功保存！');
+    toastr.success('设置已自动保存！');
   } catch (e: any) {
     const error = e as Error;
-    console.error('保存设置失败:', error);
-    toastr.error(`保存失败: ${error.message}`);
+    console.error('自动保存设置失败:', error);
+    toastr.error(`自动保存失败: ${error.message}`);
   }
+}, { deep: true });
+
+
+// 获取模型列表
+const getModels = async () => {
+    if (!settings.value.apiUrl) {
+        toastr.error('请先填写 API 地址');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${settings.value.apiUrl}/models`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        // 根据常见的 API 响应格式，模型列表在 data.data 中
+        models.value = data.data.map((model: any) => model.id);
+        toastr.success('模型列表已获取');
+    } catch (error) {
+        console.error('获取模型列表失败:', error);
+        toastr.error('获取模型列表失败，请检查 API 地址和网络连接。');
+    }
 };
+
 </script>
 
 <style lang="scss" scoped>
-.auto-runner-settings {
-  padding: 1rem;
-  background-color: #2a2a2e;
-  color: #f0f0f0;
-  border-radius: 8px;
-  font-family: sans-serif;
-}
-
-h2, h3 {
-  color: #fff;
-  border-bottom: 1px solid #444;
-  padding-bottom: 0.5rem;
-  margin-top: 1rem;
-}
-
-.setting-group {
-  margin-bottom: 1rem;
-}
-
-input[type="text"],
-input[type="password"],
-input[type="number"],
-textarea {
-  width: 100%;
-  padding: 0.5rem;
-  background-color: #3a3a3e;
-  border: 1px solid #555;
-  color: #f0f0f0;
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
-  box-sizing: border-box;
-}
-
-textarea {
-  min-height: 100px;
-  resize: vertical;
-}
-
-button {
-  background-color: #4a90e2;
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background-color: #357abd;
-  }
-}
-
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 60px;
-  height: 34px;
-
-  input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-
-  .slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #ccc;
-    transition: .4s;
-    border-radius: 34px;
-
-    &:before {
-      position: absolute;
-      content: "";
-      height: 26px;
-      width: 26px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-  }
-
-  input:checked + .slider {
-    background-color: #4a90e2;
-  }
-
-  input:checked + .slider:before {
-    transform: translateX(26px);
-  }
-}
+// 样式将由父级页面的全局样式提供，此处留空
+// 确保在项目中引入了类似 `inline-drawer`、`text_pole`、`menu_button` 等样式
 </style>
