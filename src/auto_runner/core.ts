@@ -25,7 +25,8 @@ async function onMessageReceived(message_id: number) {
 
   try {
     // 3. 获取聊天上下文
-    const chatHistory = getChatMessages('all');
+    const lastId = await getLastMessageId();
+    const chatHistory = getChatMessages(`0-${lastId}`);
     const contextPrompt = chatHistory.map(msg => `${msg.name}: ${msg.message}`).join('\n');
 
     // 4. 调用“副AI”生成下一条指令
