@@ -6,8 +6,10 @@ let remainingReplies = 0;
 let isRunning = false;
 
 async function onMessageReceived(message_id: number) {
+  console.log(`[AutoRunner] GENERATION_ENDED 事件触发，message_id: ${message_id}`);
+
   if (isRunning) {
-    console.log('自动化脚本正在运行中，跳过本次触发。');
+    console.log('[AutoRunner] 脚本正在运行中，跳过本次触发。');
     return;
   }
 
@@ -16,10 +18,24 @@ async function onMessageReceived(message_id: number) {
   const lastMessage = getChatMessages(-1)[0];
 
   // 2. 检查触发条件
-  if (!settings.enabled || !lastMessage || lastMessage.role !== 'assistant' || remainingReplies <= 0) {
+  if (!settings.enabled) {
+    console.log('[AutoRunner] 脚本未启用，跳过。');
+    return;
+  }
+  if (!lastMessage) {
+    console.log('[AutoRunner] 未获取到最后一条消息，跳过。');
+    return;
+  }
+  if (lastMessage.role !== 'assistant') {
+    console.log(`[AutoRunner] 最后一条消息的角色是 "${lastMessage.role}" 而不是 "assistant"，跳过。`);
+    return;
+  }
+  if (remainingReplies <= 0) {
+    console.log('[AutoRunner] 剩余回复次数为0，跳过。');
     return;
   }
 
+  console.log('[AutoRunner] 所有条件满足，开始执行自动化流程。');
   isRunning = true;
   toastr.info(`自动执行: ${settings.maxReplies - remainingReplies + 1}/${settings.maxReplies}`);
 
