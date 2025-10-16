@@ -20,7 +20,7 @@ export const SettingsSchema = z.object({
 (<!--\s*consider\s*:\s*(.*?)\s*-->)|(.*?<\/think(ing)?>(\n)?)|(<think(ing)?>[\s\S]*?<\/think(ing)?>(\n)?)
 /<UpdateVariable>[\s\S]*?</UpdateVariable>/gm`
   ),
-  subAiRegex: z.preprocess((val) => val ?? '', z.string()),
+  subAiRegex: z.string().nullable().transform(val => val ?? String.raw`^[\s\S]*?<\/think(ing)?>\s*`),
   subAiRegexReplacement: z.preprocess((val) => val ?? '', z.string()),
   maxRetries: z.coerce.number().min(0).default(3),
 });
