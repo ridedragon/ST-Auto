@@ -144,16 +144,127 @@ function processSubAiResponse(reply: string): string {
 }
 
 /**
- * 执行SSC优化和“一键处理”
+ * 获取最后一条角色消息的文本
  */
-async function triggerSscAndProcess() {
-  toastr.info('执行“全自动优化(SSC)”...');
-  await eventEmit(getButtonEvent('全自动优化(SSC)'));
-  await delay(2000); // 等待界面渲染
+async function getLastCharMessage(): Promise<string> {
+  try {
+    const lastMessageId = await getLastMessageId();
+    if (lastMessageId < 0) return '';
 
-  toastr.info('执行“一键处理”...');
-  await eventEmit(getButtonEvent('一键处理'));
-  await delay(4000); // 等待界面渲染
+    // 搜索最近的10条消息以提高效率
+    const startId = Math.max(0, lastMessageId - 9);
+    const messages = getChatMessages(`${startId}-${lastMessageId}`);
+
+    const lastCharMsg = [...messages].reverse().find(m => m.role === 'assistant');
+    return lastCharMsg ? lastCharMsg.message : '';
+  } catch (e) {
+    console.error('获取最后一条角色消息时出错:', e);
+    return '';
+  }
+}
+
+/**
+ * 执行SSC优化和“一键处理”，并处理用户取消操作
+ * @returns {Promise<boolean>} 如果成功或无事可做则返回 true，如果用户取消则返回 false
+ */
+async function triggerSscAndProcess(): Promise<boolean> {
+  const api = (window.parent as any).aiOptimizer;
+  if (!api || typeof api.manualOptimize !== 'function' || typeof api.optimizeText !== 'function') {
+    toastr.warning('未找到 AI Optimizer API，跳过优化步骤。');
+    // 即使找不到API，也继续执行“一键处理”
+    toastr.info('执行“一键处理”...');
+    await eventEmit(getButtonEvent('一键处理'));
+    await delay(4000);
+    return true;
+  }
+
+  try {
+    toastr.info('自动化优化流程已启动...');
+    const sourceContent: string | null = await new Promise(resolve => {
+      api.manualOptimize((content: string | null) => resolve(content));
+    });
+
+    if (!sourceContent) {
+      toastr.info('在最后一条角色消息中未找到可优化的内容，跳过SSC优化。');
+    } else {
+      // 步骤1: 提取和编辑
+      (window.parent as any).tempPopupText = sourceContent;
+      const extractedPopupContent = `<p>已提取以下内容（可编辑），点击“继续”发送给AI优化：</p><textarea oninput="window.parent.tempPopupText = this.value" id="auto-optimizer-source" class="text_pole" rows="10" style="width: 100%;">${sourceContent}</textarea>`;
+      const continueStep1 = await (SillyTavern as any).getContext().callGenericPopup(
+        extractedPopupContent,
+        '步骤1: 提取并编辑',
+        '',
+        { okButton: '继续', cancelButton: '取消', wide: true },
+      );
+
+      const editedSourceContent = (window.parent as any).tempPopupText;
+      delete (window.parent as any).tempPopupText;
+
+      if (!continueStep1) {
+        toastr.info('自动化流程已由用户在步骤1取消。');
+        return false; // 用户取消
+      }
+
+      toastr.info('正在发送给AI优化...');
+
+      // 步骤2: 优化
+      const lastCharMessage = await getLastCharMessage();
+      const systemPrompt = typeof api.getSystemPrompt === 'function' ? api.getSystemPrompt() : '';
+      const optimizedResultText = await api.optimizeText(editedSourceContent, systemPrompt, lastCharMessage);
+
+      if (optimizedResultText === null) {
+        toastr.info('优化被用户取消。');
+        return false; // 用户取消
+      }
+      if (!optimizedResultText) {
+        throw new Error('AI 未能返回优化后的文本。');
+      }
+
+      // 步骤3: 对比和替换
+      (window.parent as any).tempPopupText = optimizedResultText;
+      const optimizedPopupContent = `
+                  <p><b>原始句子:</b></p>
+                  <textarea class="text_pole" rows="5" style="width: 100%;" readonly>${editedSourceContent}</textarea>
+                  <p><b>优化后句子 (可编辑):</b></p>
+                  <textarea oninput="window.parent.tempPopupText = this.value" id="auto-optimizer-result" class="text_pole" rows="5" style="width: 100%;">${optimizedResultText}</textarea>
+              `;
+      const userConfirmed = await (SillyTavern as any).getContext().callGenericPopup(
+        optimizedPopupContent,
+        '步骤2: 对比并确认替换',
+        '',
+        { okButton: '替换', cancelButton: '取消', wide: true },
+      );
+
+      const finalOptimizedText = (window.parent as any).tempPopupText;
+      delete (window.parent as any).tempPopupText;
+
+      if (!userConfirmed) {
+        toastr.info('替换操作已由用户取消。');
+        return false; // 用户取消
+      }
+
+      toastr.info('正在执行SSC替换...');
+      await new Promise<void>(resolve => {
+        api.replaceMessage(editedSourceContent, finalOptimizedText, (newContent: string | null) => {
+          if (newContent) {
+            toastr.success('SSC 替换完成！');
+          }
+          resolve();
+        });
+      });
+    }
+
+    // 总是执行“一键处理”
+    toastr.info('执行“一键处理”...');
+    await eventEmit(getButtonEvent('一键处理'));
+    await delay(4000);
+
+    return true; // 成功
+  } catch (error) {
+    console.error('[Auto Optimizer] 流程执行出错:', error);
+    toastr.error((error as Error).message, '自动化优化流程失败');
+    return false; // 失败
+  }
 }
 
 // --- 主循环逻辑 ---
@@ -184,7 +295,12 @@ async function runAutomation() {
       toastr.info('检测到AI消息，开始完整循环...');
 
       // 步骤 1 & 2: SSC 和 一键处理
-      await triggerSscAndProcess();
+      const processSuccess = await triggerSscAndProcess();
+      if (!processSuccess) {
+        toastr.warning('用户取消了操作，全自动运行已停止。');
+        stopAutomation();
+        return;
+      }
 
       // 步骤 3: 发送给副AI
       const subAiReply = await callSubAI();
@@ -230,6 +346,16 @@ function onMessageReceived() {
   }
 }
 
+/**
+ * 强制停止函数，用于监听系统停止事件
+ */
+function forceStop() {
+  if (state === AutomationState.RUNNING) {
+    toastr.warning('来自系统的停止信号，全自动运行已终止。');
+    stopAutomation();
+  }
+}
+
 // --- 暴露给外部的控制函数 ---
 
 /**
@@ -244,6 +370,7 @@ function startAutomation() {
 
   // 绑定事件
   eventOn(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
+  eventOn(tavern_events.GENERATION_STOPPED, forceStop);
 
   // 立即开始第一次循环
   runAutomation();
@@ -260,6 +387,7 @@ function stopAutomation() {
 
   // 解绑事件
   eventRemoveListener(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
+  eventRemoveListener(tavern_events.GENERATION_STOPPED, forceStop);
 
   // 尝试停止任何正在进行的生成
   triggerSlash('/stop');
