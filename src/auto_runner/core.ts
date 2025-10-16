@@ -12,6 +12,7 @@ enum AutomationState {
 let state: AutomationState = AutomationState.IDLE;
 let settings: Settings = SettingsSchema.parse({});
 let retryCount = 0;
+let pollingInterval: number | null = null; // 用于轮询的定时器ID
 
 // --- 辅助函数 ---
 
@@ -356,6 +357,23 @@ function forceStop() {
   }
 }
 
+/**
+ * 轮询检查生成状态
+ */
+function checkGenerationStatus() {
+  // 检查“停止生成”按钮是否可见。如果不可见，说明生成已停止。
+  const isGenerating = $('#stop_generation').is(':visible');
+
+  if (!isGenerating && state === AutomationState.RUNNING) {
+    // 如果UI显示没有在生成，但我们的脚本状态仍然是RUNNING，
+    // 这可能意味着一次生成已经（非正常）结束，或者用户点击了停止。
+    // 我们需要触发一次循环检查，或者直接停止。
+    // 为避免复杂化，我们直接触发一次 runAutomation，让它来判断下一步。
+    console.log('[AutoRunner Polling] 检测到生成已停止，触发一次循环检查。');
+    runAutomation();
+  }
+}
+
 // --- 暴露给外部的控制函数 ---
 
 /**
@@ -371,6 +389,10 @@ function startAutomation() {
   // 绑定事件
   eventOn(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
   eventOn(tavern_events.GENERATION_STOPPED, forceStop);
+
+  // 启动轮询
+  if (pollingInterval) clearInterval(pollingInterval);
+  pollingInterval = setInterval(checkGenerationStatus, 1000); // 每秒检查一次
 
   // 立即开始第一次循环
   runAutomation();
@@ -388,6 +410,12 @@ function stopAutomation() {
   // 解绑事件
   eventRemoveListener(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
   eventRemoveListener(tavern_events.GENERATION_STOPPED, forceStop);
+
+  // 停止轮询
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
 
   // 尝试停止任何正在进行的生成
   triggerSlash('/stop');
