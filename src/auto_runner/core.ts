@@ -78,16 +78,20 @@ async function handleMainAiReply() {
   toastr.info('[自动运行] 检测到主AI消息，开始后处理...');
 
   try {
+    // 调试步骤：暂时禁用按钮触发，直接进入下一步
+    toastr.warning('[自动运行-调试] 已跳过触发“SSC”和“一键处理”按钮的步骤。');
+
+    // const finalMessage = (getChatMessages(-1) || [])[0];
     // 步骤 1: 触发“全自动优化(SSC)”并等待
-    toastr.info('[自动运行] 步骤 1/3: 触发“全自动优化(SSC)”...');
-    await eventEmit(getButtonEvent('全自动优化(SSC)'));
-    await new Promise(resolve => setTimeout(resolve, 1500)); // 等待SSC完成
-    toastr.info('[自动运行] “全自动优化(SSC)”完成。');
+    // toastr.info('[自动运行] 步骤 1/3: 触发“全自动优化(SSC)”...');
+    // await eventEmit(getButtonEvent('全自动优化(SSC)'));
+    // await new Promise(resolve => setTimeout(resolve, 1500)); // 等待SSC完成
+    // toastr.info('[自动运行] “全自动优化(SSC)”完成。');
 
     // 步骤 2: 触发“一键处理”的数据处理部分
-    toastr.info('[自动运行] 步骤 2/3: 触发“一键处理”...');
-    await eventEmit(getButtonEvent('一键处理'));
-    toastr.info('[自动运行] “一键处理”事件已发送，开始轮询最终消息...');
+    // toastr.info('[自动运行] 步骤 2/3: 触发“一键处理”...');
+    // await eventEmit(getButtonEvent('一键处理'));
+    // toastr.info('[自动运行] “一键处理”事件已发送，开始轮询最终消息...');
 
     // 轮询等待“一键处理”后的最终AI消息
     let finalMessage = null;
@@ -98,17 +102,17 @@ async function handleMainAiReply() {
       const lastMessage = (getChatMessages(-1) || [])[0];
       if (lastMessage && lastMessage.role === 'assistant') {
         finalMessage = lastMessage;
-        toastr.info(`[自动运行] 在第 ${i + 1} 次尝试中成功获取到AI最终消息。`);
+        toastr.info(`[自动运行-调试] 在第 ${i + 1} 次尝试中成功获取到AI最终消息。`);
         break;
       }
       await new Promise(resolve => setTimeout(resolve, retryDelay));
     }
 
     if (!finalMessage) {
-      toastr.warning('[自动运行] 在“一键处理”后轮询超时，未能获取到有效的AI消息，流程中止。');
+      toastr.warning('[自动运行-调试] 轮询超时，未能获取到有效的AI消息，流程中止。');
       return null;
     }
-    toastr.info('[自动运行] “一键处理”及消息轮询完成。');
+    toastr.info('[自动运行-调试] 消息获取完成。');
 
     // 步骤 3: 将最终消息发送给副AI
     toastr.info(`[自动运行] 步骤 3/3: 调用副AI API...`);
