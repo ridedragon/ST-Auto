@@ -4,10 +4,6 @@ import { SettingsSchema, type Settings } from './types';
 let isRunning = false;
 
 async function onMessageReceived(message_id: number) {
-  console.log(`[诊断] onMessageReceived 事件已触发，消息 ID: ${message_id}`);
-  if (isRunning) {
-    return;
-  }
 
   // 增加一个短暂的延迟，以确保消息已完全注册
   await new Promise(resolve => setTimeout(resolve, 100));
@@ -17,6 +13,7 @@ async function onMessageReceived(message_id: number) {
   const lastMessage = getChatMessages(message_id)[0];
 
   // 2. 检查触发条件
+  console.log('[诊断] 获取到的消息对象:', lastMessage);
   if (!settings.enabled || !lastMessage || lastMessage.role !== 'assistant' || settings.remainingReplies <= 0) {
     return;
   }
@@ -79,7 +76,6 @@ async function onMessageReceived(message_id: number) {
     // 7. 更新状态
     settings.remainingReplies--;
     await replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
-
   } catch (e: any) {
     const error = e as Error;
     console.error('自动化脚本运行出错:', error);
@@ -87,24 +83,26 @@ async function onMessageReceived(message_id: number) {
   } finally {
     isRunning = false;
     // 再次获取最新设置以检查是否完成
-    const finalSettings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
+    const finalSettings: Settings = SettingsSchema.parse(
+      getVariables({ type: 'script', script_id: getScriptId() }) || {},
+    );
     if (finalSettings.remainingReplies <= 0 && finalSettings.enabled) {
-        toastr.info('自动化任务完成。');
-        // 任务完成后自动禁用脚本
-        finalSettings.enabled = false;
-        await replaceVariables(_.cloneDeep(finalSettings), { type: 'script', script_id: getScriptId() });
+      toastr.info('自动化任务完成。');
+      // 任务完成后自动禁用脚本
+      finalSettings.enabled = false;
+      await replaceVariables(_.cloneDeep(finalSettings), { type: 'script', script_id: getScriptId() });
     }
   }
 }
 
 async function onUserMessage() {
-    const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
-    
-    // 当用户发送消息、脚本启用且剩余次数为0时，才将总次数赋给剩余次数
-    if (settings.enabled && settings.remainingReplies === 0) {
-        settings.remainingReplies = settings.totalReplies;
-        await replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
-    }
+  const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
+
+  // 当用户发送消息、脚本启用且剩余次数为0时，才将总次数赋给剩余次数
+  if (settings.enabled && settings.remainingReplies === 0) {
+    settings.remainingReplies = settings.totalReplies;
+    await replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
+  }
 }
 
 export function start() {
@@ -112,6 +110,6 @@ export function start() {
   eventOn(tavern_events.CHARACTER_MESSAGE_RENDERED, onMessageReceived);
   // 监听用户发送消息以启动计数器
   eventOn(tavern_events.MESSAGE_SENT, onUserMessage);
-  
+
   console.log('自动化运行脚本已启动并监听事件。');
 }
