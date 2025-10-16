@@ -184,7 +184,7 @@
 
         if (!sourceContent) {
           toastr.info('在最后一条角色消息中未找到可优化的内容，流程中止。');
-          return;
+          return 'NO_CONTENT';
         }
 
         // 步骤1: 提取和编辑
@@ -202,20 +202,19 @@
 
         if (!continueStep1) {
           toastr.info('自动化流程已由用户取消。');
-          return;
+          return 'CANCELLED';
         }
 
         toastr.info('正在发送给AI优化...');
 
         // 步骤2: 优化
         const lastCharMessage = await getLastCharMessage();
-        // 尝试获取系统提示词，如果函数不存在则使用空字符串
         const systemPrompt = typeof api.getSystemPrompt === 'function' ? api.getSystemPrompt() : '';
         const optimizedResultText = await api.optimizeText(editedSourceContent, systemPrompt, lastCharMessage);
 
         if (optimizedResultText === null) {
           console.log('[Auto Optimizer] 优化被用户取消，流程中止。');
-          return;
+          return 'CANCELLED';
         }
         if (!optimizedResultText) {
           throw new Error('AI 未能返回优化后的文本。');
@@ -241,61 +240,29 @@
 
         if (!userConfirmed) {
           toastr.info('自动化流程已由用户取消。');
-          return;
+          return 'CANCELLED';
         }
 
         toastr.info('正在执行替换...');
-        await new Promise(resolve => {
+        const success = await new Promise(resolve => {
           api.replaceMessage(editedSourceContent, finalOptimizedText, newContent => {
             if (newContent) {
               toastr.success('替换完成！流程结束。', '成功', { timeOut: 5000 });
+              resolve(true);
+            } else {
+              resolve(false);
             }
-            resolve();
           });
         });
+        
+        return success ? 'SUCCESS' : 'FAILED';
+
       } catch (error) {
         console.error('[Auto Optimizer] 流程执行出错:', error);
         toastr.error(error.message, '自动化流程失败', { timeOut: 10000 });
+        throw error; // 向上抛出错误
       }
     }
-
-    // 新增：一个真正全自动、无UI交互的SSC优化版本
-    async function runSSCOptimization_fullyAutomatic() {
-        try {
-            const sourceContent = await new Promise(resolve => {
-                api.manualOptimize(content => resolve(content));
-            });
-
-            if (!sourceContent) {
-                toastr.info('[自动运行] 未在最后一条消息中找到可优化的内容。');
-                return false; // 返回false表示没有执行任何操作
-            }
-
-            const lastCharMessage = await getLastCharMessage();
-            const systemPrompt = typeof api.getSystemPrompt === 'function' ? api.getSystemPrompt() : '';
-            const optimizedResultText = await api.optimizeText(sourceContent, systemPrompt, lastCharMessage);
-
-            if (!optimizedResultText) {
-                toastr.warning('[自动运行] AI未能返回优化后的文本。');
-                return false;
-            }
-
-            await new Promise(resolve => {
-                api.replaceMessage(sourceContent, optimizedResultText, newContent => {
-                    if (newContent) {
-                        toastr.success('SSC自动优化和替换完成！');
-                    }
-                    resolve(true);
-                });
-            });
-            return true; // 表示成功执行
-        } catch (error) {
-            console.error('[全自动运行] 内部SSC优化出错:', error);
-            toastr.error('执行内部SSC优化时发生错误。');
-            return false;
-        }
-    }
-
 
     // --- 辅助函数 ---
     async function getLastCharMessage() {
@@ -345,35 +312,50 @@
             try {
                 toastr.info('[自动运行] 开始新一轮处理...');
 
-                // 1. 调用并等待真正全自动的SSC优化函数
-                toastr.info('[自动运行] 步骤 1/2: 执行全自动SSC优化...');
-                const optimizationPerformed = await runSSCOptimization_fullyAutomatic();
-                
-                // 如果没有内容可优化，则直接触发主AI对原文进行回复，避免卡住
-                if (!optimizationPerformed) {
-                    toastr.info('[自动运行] 无内容可优化，直接由主AI继续...');
-                    $('#send_textarea').val((getChatMessages(-1) || [])[0].message);
-                    $('#send_but').trigger('click');
-                } else {
-                    toastr.info('[自动运行] SSC优化完成。');
-                    // 2. 将优化后的消息作为用户输入，触发主AI回复
+                // 1. 调用 handleFullAuto 并根据其返回值决定下一步
+                const result = await handleFullAuto();
+
+                if (result === 'SUCCESS') {
+                    // 优化成功，将优化后的消息作为用户输入，触发主AI
+                    toastr.info('[自动运行] SSC优化成功，将作为用户输入触发主AI...');
                     const finalMessage = (getChatMessages(-1) || [])[0];
                     if (!finalMessage || finalMessage.role !== 'assistant') {
                         toastr.warning('[自动运行] 优化后未能获取到有效的AI消息，流程暂停。');
                         stopAutomation();
                         return;
                     }
-                    
-                    toastr.info('[自动运行] 步骤 2/2: 将优化后的消息作为用户输入，触发主AI...');
                     $('#send_textarea').val(finalMessage.message);
                     $('#send_but').trigger('click');
-                }
 
-                // 等待主AI生成完毕
-                await new Promise(resolve => {
-                    eventOnce(tavern_events.GENERATION_ENDED, () => resolve(true));
-                    eventOnce(tavern_events.GENERATION_STOPPED, () => resolve(false));
-                });
+                    // 等待主AI生成完毕
+                    await new Promise(resolve => {
+                        eventOnce(tavern_events.GENERATION_ENDED, () => resolve(true));
+                        eventOnce(tavern_events.GENERATION_STOPPED, () => resolve(false));
+                    });
+
+                } else if (result === 'NO_CONTENT') {
+                    // 没有可优化的内容，说明AI回复很完美，直接让“用户”（副AI）继续
+                    toastr.info('[自动运行] 未找到可优化内容，模拟用户继续对话...');
+                    $('#send_textarea').val('（继续）'); // 或者其他提示继续的词
+                    $('#send_but').trigger('click');
+                    
+                    // 等待主AI生成完毕
+                     await new Promise(resolve => {
+                        eventOnce(tavern_events.GENERATION_ENDED, () => resolve(true));
+                        eventOnce(tavern_events.GENERATION_STOPPED, () => resolve(false));
+                    });
+
+                } else if (result === 'CANCELLED') {
+                    // 用户手动取消，停止自动化
+                    toastr.info('[自动运行] 用户取消了操作，自动化已停止。');
+                    stopAutomation();
+                    return;
+                } else {
+                    // 其他失败情况
+                    toastr.warning('[自动运行] SSC流程未成功完成，流程暂停。');
+                    stopAutomation();
+                    return;
+                }
 
                 if (!isAutomationRunning) {
                     toastr.info('自动化在等待AI生成时被手动停止。');
