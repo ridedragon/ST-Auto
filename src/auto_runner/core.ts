@@ -74,7 +74,7 @@ async function onMessageReceived(message_id: number) {
     let processedInstruction = nextUserInstruction;
     if (settings.subAiRegex && settings.subAiRegex.trim() !== '') {
       try {
-        const subAiRegex = new RegExp(settings.subAiRegex, 'gm');
+        const subAiRegex = new RegExp(settings.subAiRegex, 'g');
         processedInstruction = nextUserInstruction.replace(subAiRegex, settings.subAiRegexReplacement || '');
       } catch (e: any) {
         const error = e as Error;
