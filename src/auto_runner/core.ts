@@ -59,14 +59,16 @@ async function onMessageReceived(message_id: number) {
 
     // 5. 对副AI的输出进行正则处理
     let processedInstruction = nextUserInstruction;
-    if (settings.subAiRegex) {
+    if (settings.subAiRegex && settings.subAiRegex.trim() !== '') {
       try {
         const subAiRegex = new RegExp(settings.subAiRegex, 'gm');
-        processedInstruction = processedInstruction.replace(subAiRegex, settings.subAiRegexReplacement);
+        processedInstruction = nextUserInstruction.replace(subAiRegex, settings.subAiRegexReplacement || '');
       } catch (e: any) {
         const error = e as Error;
         console.error('副AI正则处理出错:', error);
-        toastr.error(`副AI正则处理错误: ${error.message}`);
+        toastr.error(`副AI输出的正则表达式无效: ${error.message}`, '正则错误');
+        // 如果正则无效，则不发送任何内容，以避免意外行为
+        processedInstruction = '';
       }
     }
 
