@@ -190,7 +190,7 @@ async function triggerSscAndProcess(): Promise<boolean> {
       // 步骤1: 提取和编辑
       (window.parent as any).tempPopupText = sourceContent;
       const extractedPopupContent = `<p>已提取以下内容（可编辑），点击“继续”发送给AI优化：</p><textarea oninput="window.parent.tempPopupText = this.value" id="auto-optimizer-source" class="text_pole" rows="10" style="width: 100%;">${sourceContent}</textarea>`;
-      const continueStep1 = await (SillyTavern as any).getContext().callGenericPopup(
+      const continueStep1 = await (window.parent as any).SillyTavern.getContext().callGenericPopup(
         extractedPopupContent,
         '步骤1: 提取并编辑',
         '',
@@ -228,7 +228,7 @@ async function triggerSscAndProcess(): Promise<boolean> {
                   <p><b>优化后句子 (可编辑):</b></p>
                   <textarea oninput="window.parent.tempPopupText = this.value" id="auto-optimizer-result" class="text_pole" rows="5" style="width: 100%;">${optimizedResultText}</textarea>
               `;
-      const userConfirmed = await (SillyTavern as any).getContext().callGenericPopup(
+      const userConfirmed = await (window.parent as any).SillyTavern.getContext().callGenericPopup(
         optimizedPopupContent,
         '步骤2: 对比并确认替换',
         '',
