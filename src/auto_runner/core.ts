@@ -4,20 +4,21 @@ import { SettingsSchema, type Settings } from './types';
 let isRunning = false;
 
 async function onMessageReceived(message_id: number) {
-  // 增加一个短暂的延迟，以确保消息已完全注册
-  await new Promise(resolve => setTimeout(resolve, 100));
+  setTimeout(async () => {
+    // 增加一个短暂的延迟，以确保消息已完全注册
+    await new Promise(resolve => setTimeout(resolve, 100));
 
-  // 1. 获取最新设置和消息
-  const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
-  const lastMessage = getChatMessages(message_id)[0];
+    // 1. 获取最新设置和消息
+    const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
+    const lastMessage = getChatMessages(message_id)[0];
 
-  // 2. 检查触发条件
-  console.log('[诊断] 获取到的消息对象:', lastMessage);
-  if (!settings.enabled || !lastMessage || lastMessage.role !== 'assistant' || settings.remainingReplies <= 0 || isRunning) {
-    return;
-  }
+    // 2. 检查触发条件
+    console.log('[诊断] 获取到的消息对象:', lastMessage);
+    if (!settings.enabled || !lastMessage || lastMessage.role !== 'assistant' || settings.remainingReplies <= 0 || isRunning) {
+      return;
+    }
 
-  isRunning = true;
+    isRunning = true;
   toastr.info(`自动执行: ${settings.totalReplies - settings.remainingReplies + 1}/${settings.totalReplies}`);
 
   try {
@@ -93,17 +94,32 @@ async function onMessageReceived(message_id: number) {
       await replaceVariables(_.cloneDeep(finalSettings), { type: 'script', script_id: getScriptId() });
     }
   }
+  }, 0);
+}
+
+function onGenerationStopped() {
+  if (isRunning) {
+    isRunning = false;
+    toastr.warning('自动化任务已被手动终止。');
+  }
 }
 
 export function start() {
   // 监听 AI 回复完成
   eventOn(tavern_events.CHARACTER_MESSAGE_RENDERED, onMessageReceived);
+  // 监听生成停止事件
+  eventOn(tavern_events.GENERATION_STOPPED, onGenerationStopped);
 
   console.log('自动化运行脚本已启动并监听事件。');
 }
 
 export function stop() {
   eventRemoveListener(tavern_events.CHARACTER_MESSAGE_RENDERED, onMessageReceived);
+  eventRemoveListener(tavern_events.GENERATION_STOPPED, onGenerationStopped);
+  if (isRunning) {
+    // 尝试通过命令停止正在进行的生成
+    triggerSlash('/stop');
+  }
   isRunning = false;
   console.log('自动化运行脚本已停止。');
 }
