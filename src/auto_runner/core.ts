@@ -13,6 +13,7 @@ async function onMessageReceived(message_id: number) {
   const lastMessage = getChatMessages(message_id)[0];
 
   // 2. 检查触发条件
+  console.log('[诊断] 获取到的消息对象:', lastMessage);
   if (!settings.enabled || !lastMessage || lastMessage.role !== 'assistant' || settings.remainingReplies <= 0) {
     return;
   }
