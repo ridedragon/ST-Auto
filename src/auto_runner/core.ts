@@ -78,44 +78,56 @@ async function handleMainAiReply() {
   toastr.info('[自动运行] 检测到主AI消息，开始后处理...');
 
   try {
-    // 1. 触发“全自动优化(SSC)”并等待
-    toastr.info('[自动运行] 步骤 1/4: 触发“全自动优化(SSC)”...');
+    // 步骤 1: 触发“全自动优化(SSC)”并等待
+    toastr.info('[自动运行] 步骤 1/3: 触发“全自动优化(SSC)”...');
     await eventEmit(getButtonEvent('全自动优化(SSC)'));
-    toastr.info('[自动运行] “全自动优化(SSC)”事件已发送，等待1.5秒...');
     await new Promise(resolve => setTimeout(resolve, 1500)); // 等待SSC完成
-    toastr.info('[自动运行] 步骤 1/4 完成。');
+    toastr.info('[自动运行] “全自动优化(SSC)”完成。');
 
-    // 2. 触发“一键处理”的数据处理部分
-    toastr.info('[自动运行] 步骤 2/4: 触发“一键处理”...');
+    // 步骤 2: 触发“一键处理”的数据处理部分
+    toastr.info('[自动运行] 步骤 2/3: 触发“一键处理”...');
     await eventEmit(getButtonEvent('一键处理'));
-    toastr.info('[自动运行] “一键处理”事件已发送，等待1.5秒...');
-    await new Promise(resolve => setTimeout(resolve, 1500)); // 等待处理完成
-    toastr.info('[自动运行] 步骤 2/4 完成。');
+    toastr.info('[自动运行] “一键处理”事件已发送，开始轮询最终消息...');
 
-    // 3. 将最终消息发送给副AI
-    toastr.info(`[自动运行] 步骤 3/4: 准备将结果发送给 ${SUB_AI_NAME}...`);
-    const finalMessage = (getChatMessages(-1) || [])[0];
+    // 轮询等待“一键处理”后的最终AI消息
+    let finalMessage = null;
+    const maxRetries = 10; // 最多轮询10次 (共5秒)
+    const retryDelay = 500; // 每次间隔0.5秒
 
-    if (finalMessage && finalMessage.role === 'assistant') {
-      const settings = getSettings();
-      if (!settings) {
-          toastr.error('无法获取设置，无法调用副AI。');
-          stopAutomation();
-          return null;
+    for (let i = 0; i < maxRetries; i++) {
+      const lastMessage = (getChatMessages(-1) || [])[0];
+      if (lastMessage && lastMessage.role === 'assistant') {
+        finalMessage = lastMessage;
+        toastr.info(`[自动运行] 在第 ${i + 1} 次尝试中成功获取到AI最终消息。`);
+        break;
       }
-      toastr.info(`[自动运行] 步骤 4/4: 调用副AI API...`);
-      const subAiResponse = await callSubAi(finalMessage.message, settings);
-      if (typeof subAiResponse === 'string' && subAiResponse.length > 0) {
-        toastr.info(`[自动运行] 副AI已回复。`);
-        return subAiResponse;
-      } else {
-        toastr.warning(`[自动运行] 副AI (${SUB_AI_NAME}) 没有返回有效的新提示词，流程中止。`);
-        return null;
-      }
-    } else {
-      toastr.warning('[自动运行] 未能获取到最终的AI消息，无法发送给副AI。');
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+
+    if (!finalMessage) {
+      toastr.warning('[自动运行] 在“一键处理”后轮询超时，未能获取到有效的AI消息，流程中止。');
       return null;
     }
+    toastr.info('[自动运行] “一键处理”及消息轮询完成。');
+
+    // 步骤 3: 将最终消息发送给副AI
+    toastr.info(`[自动运行] 步骤 3/3: 调用副AI API...`);
+    const settings = getSettings();
+    if (!settings) {
+        toastr.error('无法获取设置，无法调用副AI。');
+        stopAutomation();
+        return null;
+    }
+    
+    const subAiResponse = await callSubAi(finalMessage.message, settings);
+    if (typeof subAiResponse === 'string' && subAiResponse.length > 0) {
+      toastr.info(`[自动运行] 副AI已成功回复。`);
+      return subAiResponse;
+    } else {
+      toastr.warning(`[自动运行] 副AI (${SUB_AI_NAME}) 没有返回有效的新提示词，流程中止。`);
+      return null;
+    }
+
   } catch (error) {
     console.error('[自动运行] handleMainAiReply 出错:', error);
     toastr.error('后处理流程发生错误，请查看控制台。');
