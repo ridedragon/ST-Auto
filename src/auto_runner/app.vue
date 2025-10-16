@@ -92,7 +92,10 @@ const models = ref<string[]>([]);
 onMounted(async() => {
   try {
     const savedSettings = getVariables({ type: 'script', script_id: getScriptId() }) || {};
-    settings.value = SettingsSchema.parse(savedSettings);
+    const defaultSettings = SettingsSchema.parse({});
+    const mergedSettings = _.merge(defaultSettings, savedSettings);
+    settings.value = SettingsSchema.parse(mergedSettings);
+
     if (settings.value.model) {
       models.value.push(settings.value.model);
     }
