@@ -307,13 +307,14 @@
                 if (lastMessage.is_user) {
                     console.log('[自动运行] 检测到用户消息，触发主AI生成...');
                     await triggerSlash('/trigger await=true');
-                    console.log('[自动运行] 主AI已回复，进入下一轮检查。');
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    console.log('[自动运行] 主AI已回复。');
+                    // 使用 continue 来确保在AI生成后，立即重新开始循环的下一次迭代
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // 短暂延迟以确保状态更新
                     continue;
                 }
 
                 // 情况二：最后一条是AI消息
-                toastr.info('[自动运行] 检测到AI消息，开始处理...');
+                console.log('[自动运行] 检测到AI消息，开始处理流程...');
 
                 // 步骤 1: 触发“全自动优化(SSC)”
                 console.log('[自动运行] 步骤 1/3: 触发“全自动优化(SSC)”...');
@@ -322,12 +323,11 @@
                 if (sscResult === 'CANCELLED' || sscResult === 'FAILED') {
                     toastr.warning(`[自动运行] “全自动优化(SSC)”未成功完成 (状态: ${sscResult})，自动化已停止。`);
                     stopAutomation();
-                    return;
+                    return; // 退出循环
                 }
-                console.log(`[自动运行] SSC处理完成，状态: ${sscResult}。`);
+                console.log(`[自动运行] “全自动优化(SSC)”完成，状态: ${sscResult}。`);
 
                 // 等待SSC操作后页面渲染
-                console.log('[自动运行] 等待2秒...');
                 await new Promise(resolve => setTimeout(resolve, 2000));
 
                 // 步骤 2: 触发“一键处理”按钮
@@ -336,35 +336,12 @@
                 console.log('[自动运行] “一键处理”完成。');
 
                 // 等待“一键处理”后页面渲染
-                console.log('[自动运行] 等待5秒...');
                 await new Promise(resolve => setTimeout(resolve, 5000));
 
-                // 步骤 3: 将处理后的消息发送给副AI，让其生成新提示词
-                const SUB_AI_NAME = '副AI'; // 定义副AI的名称
-                const finalMessage = (getChatMessages(-1) || [])[0];
-
-                if (!finalMessage || finalMessage.is_user) {
-                    toastr.warning('[自动运行] 未能获取到最终的AI消息，无法发送给副AI。流程暂停。');
-                    stopAutomation();
-                    return;
-                }
-
-                console.log(`[自动运行] 步骤 3/4: 将内容发送给副AI (${SUB_AI_NAME}) 生成新提示词...`);
-                // 使用 /ask 命令，它会调用指定角色并返回其回复
-                const newPrompt = await triggerSlash(`/ask name="${SUB_AI_NAME}" "${finalMessage.message.replace(/"/g, '\\"')}"`);
-
-                if (!newPrompt || newPrompt.trim() === '') {
-                    toastr.error(`[自动运行] 副AI (${SUB_AI_NAME}) 没有返回有效的新提示词，流程中止。`);
-                    stopAutomation();
-                    return;
-                }
-
-                // 步骤 4: 将副AI生成的新提示词作为用户消息发送
-                console.log('[自动运行] 步骤 4/4: 以用户身份发送新提示词...');
-                // 使用 /send 命令，它会作为用户消息发送，并自动触发主AI的回复
-                await triggerSlash(`/send "${newPrompt.replace(/"/g, '\\"')}"`);
-
-                toastr.success('[自动运行] 本轮处理完成，新提示词已发送。');
+                // 步骤 3: 触发副AI生成下一条消息
+                console.log('[自动运行] 步骤 3/3: 触发副AI生成...');
+                await triggerSlash('/trigger await=true');
+                console.log('[自动运行] 已触发副AI。');
 
           // 在每次循环后短暂延迟，以防止CPU占用过高，并给UI响应时间
           await new Promise(resolve => setTimeout(resolve, 1000));
