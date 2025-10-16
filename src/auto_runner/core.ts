@@ -4,6 +4,7 @@ import { SettingsSchema, type Settings } from './types';
 let isRunning = false;
 
 async function onMessageReceived(message_id: number) {
+  console.log(`[诊断] onMessageReceived 事件已触发，消息 ID: ${message_id}`);
   if (isRunning) {
     return;
   }
