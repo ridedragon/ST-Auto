@@ -63,7 +63,7 @@ async function incrementExecutedCount() {
  */
 async function callSubAI(): Promise<string | null> {
   toastr.info('正在调用副AI...');
-  const lastMessageId = await getMessageId('last');
+  const lastMessageId = await getLastMessageId();
   const allMessages = getChatMessages(`0-${lastMessageId}`); // 获取所有消息
   if (!allMessages || allMessages.length === 0) {
     toastr.error('无法获取聊天记录');
