@@ -77,7 +77,7 @@ async function onMessageReceived(message_id: number) {
 
     // 7. 更新状态
     settings.remainingReplies--;
-    replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
+    await replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
 
   } catch (e: any) {
     const error = e as Error;
@@ -91,18 +91,18 @@ async function onMessageReceived(message_id: number) {
         toastr.info('自动化任务完成。');
         // 任务完成后自动禁用脚本
         finalSettings.enabled = false;
-        replaceVariables(_.cloneDeep(finalSettings), { type: 'script', script_id: getScriptId() });
+        await replaceVariables(_.cloneDeep(finalSettings), { type: 'script', script_id: getScriptId() });
     }
   }
 }
 
-function onUserMessage() {
+async function onUserMessage() {
     const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
     
     // 当用户发送消息、脚本启用且剩余次数为0时，才将总次数赋给剩余次数
     if (settings.enabled && settings.remainingReplies === 0) {
         settings.remainingReplies = settings.totalReplies;
-        replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
+        await replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
     }
 }
 

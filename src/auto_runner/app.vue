@@ -91,7 +91,7 @@ const models = ref<string[]>([]);
 // 加载设置
 onMounted(async() => {
   try {
-    const savedSettings = getVariables({ type: 'script', script_id: getScriptId() });
+    const savedSettings = getVariables({ type: 'script', script_id: getScriptId() }) || {};
     settings.value = SettingsSchema.parse(savedSettings);
     if (settings.value.model) {
       models.value.push(settings.value.model);
@@ -103,10 +103,10 @@ onMounted(async() => {
 });
 
 // 监视设置变化并自动保存
-watch(settings, (newSettings) => {
+watch(settings, async (newSettings) => {
   try {
     const validatedSettings = SettingsSchema.parse(newSettings);
-    replaceVariables(_.cloneDeep(validatedSettings), { type: 'script', script_id: getScriptId() });
+    await replaceVariables(_.cloneDeep(validatedSettings), { type: 'script', script_id: getScriptId() });
   } catch (e: any) {
     const error = e as Error;
     console.error('自动保存设置失败:', error);
