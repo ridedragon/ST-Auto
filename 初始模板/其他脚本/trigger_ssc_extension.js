@@ -412,49 +412,60 @@
 
   let isAutomationRunning = false;
 
-  async function runAutomationCycle() {
-    if (!isAutomationRunning) {
-      return;
-    }
+  async function automationLoop() {
+    while (isAutomationRunning) {
+      try {
+        // 获取最后一条消息
+        const lastMessage = (getChatMessages(-1) || [])[0];
+        if (!lastMessage) {
+          toastr.warning('无法获取最后一条消息，自动化已暂停。');
+          stopAutomation();
+          return; // 退出循环
+        }
 
-    try {
-      const lastMessage = (getChatMessages(-1) || [])[0];
-      if (!lastMessage) {
-        toastr.warning('无法获取最后一条消息，自动化已暂停。');
-        stopAutomation();
-        return;
-      }
+        // 如果最后一条是用户消息，则先让主AI回复
+        if (lastMessage.role === 'user') {
+          toastr.info('[自动运行] 检测到用户消息，触发主AI生成...');
+          await triggerSlash('/trigger await=true');
+          // 主AI回复后，循环将进入下一次迭代，届时最后一条消息将是AI消息
+          continue; // 继续下一次循环
+        }
 
-      if (lastMessage.role === 'user') {
-        toastr.info('[自动运行] 检测到用户消息，触发主AI生成...');
-        await triggerSlash('/trigger await=true');
-      } else {
-        toastr.info('[自动运行] 检测到AI消息，开始处理流程...');
-        
+        // --- 到这里，最后一条消息一定是AI消息 ---
+
+        // 1. 触发“全自动优化(SSC)”
         toastr.info('[自动运行] 步骤 1/3: 触发“全自动优化(SSC)”...');
         await eventEmit(getButtonEvent('全自动优化(SSC)'));
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1500)); // 等待处理
 
+        // 2. 触发“一键处理”
         toastr.info('[自动运行] 步骤 2/3: 触发“一键处理”...');
         await eventEmit(getButtonEvent('一键处理'));
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1500)); // 等待处理
 
-        toastr.info(`[自动运行] 步骤 3/3: 发送给 ${SUB_AI_NAME}...`);
+        // 3. 将处理后的消息发送给副AI
         const finalMessage = (getChatMessages(-1) || [])[0];
-
-        if (finalMessage && finalMessage.role === 'assistant') {
-          await triggerSlash(`/sendas name=${SUB_AI_NAME} "${finalMessage.message.replace(/"/g, '\\"')}"`);
-          toastr.success(`[自动运行] 已成功发送给 ${SUB_AI_NAME}。等待主AI回复...`);
-          await triggerSlash('/trigger await=true');
-        } else {
-          toastr.warning('[自动运行] 未能获取到最终的AI消息，无法发送给副AI。流程暂停。');
-          stopAutomation();
+        if (!finalMessage || finalMessage.role !== 'assistant') {
+            toastr.warning('[自动运行] 优化/处理后未能获取到有效的AI消息，流程暂停。');
+            stopAutomation();
+            return;
         }
+        toastr.info(`[自动运行] 步骤 3/3: 发送给 ${SUB_AI_NAME}...`);
+        await triggerSlash(`/sendas name=${SUB_AI_NAME} "${finalMessage.message.replace(/"/g, '\\"')}"`);
+        toastr.success(`[自动运行] 已成功发送给 ${SUB_AI_NAME}。`);
+
+        // 4. 触发主AI对副AI的发言进行回复
+        toastr.info('[自动运行] 触发主AI以继续对话...');
+        await triggerSlash('/trigger await=true');
+        
+        // 一轮循环结束，等待下一次迭代
+
+      } catch (error) {
+        console.error('[全自动运行] 循环出错:', error);
+        toastr.error('自动化运行时发生错误，请查看控制台。流程已终止。');
+        stopAutomation();
+        return; // 发生错误时退出循环
       }
-    } catch (error) {
-      console.error('[全自动运行] 循环出错:', error);
-      toastr.error('自动化运行时发生错误，请查看控制台。流程已终止。');
-      stopAutomation();
     }
   }
 
@@ -462,15 +473,14 @@
     if (isAutomationRunning) return;
     isAutomationRunning = true;
     toastr.success('全自动运行已启动！', '自动化控制');
-    eventOn(tavern_events.MESSAGE_RECEIVED, runAutomationCycle);
-    runAutomationCycle();
+    automationLoop(); // 启动循环
   }
 
   function stopAutomation() {
     if (!isAutomationRunning) return;
     isAutomationRunning = false;
-    eventRemoveListener(tavern_events.MESSAGE_RECEIVED, runAutomationCycle);
     toastr.info('全自动运行已停止。', '自动化控制');
+    // 尝试停止任何可能正在进行的AI生成
     triggerSlash('/stop');
   }
 
