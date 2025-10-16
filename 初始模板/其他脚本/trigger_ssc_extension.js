@@ -278,8 +278,96 @@
 
     // --- 注册按钮和事件 ---
     buttons.forEach(button => {
-      eventOn(getButtonEvent(button.name), button.action);
+      eventOn(getButton-event(button.name), button.action);
     });
+
+    // =================================================================
+    // 全自动运行逻辑
+    // =================================================================
+    const AUTO_RUN_BUTTON_NAME = '全自动运行';
+    let isAutomationRunning = false;
+
+    async function automationLoop() {
+        // 启动时，先处理一次初始状态
+        try {
+            const lastMessage = (getChatMessages(-1) || [])[0];
+            if (lastMessage && lastMessage.role === 'user') {
+                toastr.info('[自动运行] 检测到用户消息，首先触发主AI生成...');
+                await triggerSlash('/trigger await=true');
+            }
+        } catch (error) {
+            console.error('[自动运行] 启动时检查出错:', error);
+            toastr.error('启动时检查最后一条消息出错，请查看控制台。');
+            stopAutomation();
+            return;
+        }
+
+        // 进入主循环
+        while (isAutomationRunning) {
+            try {
+                toastr.info('[自动运行] 开始新一轮处理...');
+
+                // 1. 直接调用并等待 handleFullAuto 完成
+                toastr.info('[自动运行] 步骤 1/2: 触发“全自动优化(SSC)”并等待用户确认...');
+                await handleFullAuto();
+                
+                // handleFullAuto 内部已经包含了用户交互和替换，执行到这里时，消息已经被优化。
+                toastr.info('[自动运行] SSC优化完成。');
+
+                // 2. 将优化后的消息作为用户输入，触发主AI回复
+                const finalMessage = (getChatMessages(-1) || [])[0];
+                if (!finalMessage || finalMessage.role !== 'assistant') {
+                    toastr.warning('[自动运行] 优化后未能获取到有效的AI消息，流程暂停。');
+                    stopAutomation();
+                    return;
+                }
+                
+                toastr.info('[自动运行] 步骤 2/2: 将优化后的消息作为用户输入，触发主AI...');
+                $('#send_textarea').val(finalMessage.message);
+                $('#send_but').trigger('click');
+
+                // 等待主AI生成完毕
+                await new Promise(resolve => {
+                    eventOnce(tavern_events.GENERATION_ENDED, () => resolve(true));
+                    eventOnce(tavern_events.GENERATION_STOPPED, () => resolve(false));
+                });
+
+                if (!isAutomationRunning) {
+                    toastr.info('自动化在等待AI生成时被手动停止。');
+                    return;
+                }
+
+            } catch (error) {
+                console.error('[全自动运行] 循环出错:', error);
+                toastr.error('自动化运行时发生错误，请查看控制台。流程已终止。');
+                stopAutomation();
+                return;
+            }
+        }
+    }
+
+    function startAutomation() {
+        if (isAutomationRunning) return;
+        isAutomationRunning = true;
+        toastr.success('全自动运行已启动！', '自动化控制');
+        automationLoop();
+    }
+
+    function stopAutomation() {
+        if (!isAutomationRunning) return;
+        isAutomationRunning = false;
+        toastr.info('全自动运行已停止。', '自动化控制');
+        triggerSlash('/stop');
+    }
+
+    eventOn(getButtonEvent(AUTO_RUN_BUTTON_NAME), () => {
+        if (isAutomationRunning) {
+            stopAutomation();
+        } else {
+            startAutomation();
+        }
+    });
+
 
     // 自动将按钮添加到脚本设置中
     (async function () {
@@ -287,12 +375,13 @@
         const scriptId = getScriptId();
         if (scriptId) {
           const existingButtons = getScriptButtons(scriptId);
-          const buttonsToAdd = buttons.filter(b => !existingButtons.some(eb => eb.name === b.name));
+          const allButtons = [...buttons.map(b => b.name), AUTO_RUN_BUTTON_NAME];
+          const buttonsToAdd = allButtons.filter(bName => !existingButtons.some(eb => eb.name === bName));
 
           if (buttonsToAdd.length > 0) {
             appendInexistentScriptButtons(
               scriptId,
-              buttonsToAdd.map(b => ({ name: b.name, visible: true })),
+              buttonsToAdd.map(bName => ({ name: bName, visible: true })),
             );
             toastr.info(`已自动添加 ${buttonsToAdd.length} 个按钮到脚本，刷新页面后可见。`);
           }
@@ -402,104 +491,4 @@
             console.log(`无法自动添加“${newButtonName}”按钮。请在脚本设置中手动添加。`);
         }
     })();
-})();
-
-(function () {
-  'use strict';
-
-  const BUTTON_NAME = '全自动运行';
-  const SUB_AI_NAME = '副AI'; // 请根据实际情况修改副AI的名字
-
-  let isAutomationRunning = false;
-
-  async function automationLoop() {
-    // 启动时，先处理一次初始状态
-    try {
-      const lastMessage = (getChatMessages(-1) || [])[0];
-      if (lastMessage && lastMessage.role === 'user') {
-        toastr.info('[自动运行] 检测到用户消息，首先触发主AI生成...');
-        await triggerSlash('/trigger await=true');
-      }
-    } catch (error) {
-      console.error('[全自动运行] 启动时检查出错:', error);
-      toastr.error('启动时检查最后一条消息出错，请查看控制台。');
-      stopAutomation(); // 启动失败则立即停止
-      return;
-    }
-
-    // 进入主循环
-    while (isAutomationRunning) {
-      try {
-        // 在每次循环开始时，我们都假定最后一条消息是主AI的回复，需要被处理
-        toastr.info('[自动运行] 开始新一轮处理...');
-
-        // 1. 触发“全自动优化(SSC)”
-        toastr.info('[自动运行] 步骤 1/3: 触发“全自动优化(SSC)”...');
-        await eventEmit(getButtonEvent('全自动优化(SSC)'));
-        await new Promise(resolve => setTimeout(resolve, 1500)); // 等待处理
-
-        // 2. 触发“一键处理”
-        toastr.info('[自动运行] 步骤 2/3: 触发“一键处理”...');
-        await eventEmit(getButtonEvent('一键处理'));
-        await new Promise(resolve => setTimeout(resolve, 1500)); // 等待处理
-
-        // 3. 将处理后的消息发送给副AI
-        const finalMessage = (getChatMessages(-1) || [])[0];
-        if (!finalMessage || finalMessage.role !== 'assistant') {
-          toastr.warning('[自动运行] 优化/处理后未能获取到有效的AI消息，流程暂停。');
-          stopAutomation();
-          return; // 退出循环
-        }
-        toastr.info(`[自动运行] 步骤 3/3: 发送给 ${SUB_AI_NAME}...`);
-        await triggerSlash(`/sendas name=${SUB_AI_NAME} "${finalMessage.message.replace(/"/g, '\\"')}"`);
-        toastr.success(`[自动运行] 已成功发送给 ${SUB_AI_NAME}。`);
-
-        // 4. 触发主AI对副AI的发言进行回复，这是本轮循环的最后一步
-        toastr.info('[自动运行] 触发主AI以继续对话...');
-        await triggerSlash('/trigger await=true');
-        
-        // 主AI回复后，循环将自然进入下一次迭代，处理这条新的AI消息
-
-      } catch (error) {
-        console.error('[全自动运行] 循环出错:', error);
-        toastr.error('自动化运行时发生错误，请查看控制台。流程已终止。');
-        stopAutomation();
-        return; // 发生错误时退出循环
-      }
-    }
-  }
-
-  function startAutomation() {
-    if (isAutomationRunning) return;
-    isAutomationRunning = true;
-    toastr.success('全自动运行已启动！', '自动化控制');
-    automationLoop(); // 启动主循环
-  }
-
-  function stopAutomation() {
-    if (!isAutomationRunning) return;
-    isAutomationRunning = false;
-    toastr.info('全自动运行已停止。', '自动化控制');
-    // 尝试停止任何可能正在进行的AI生成
-    triggerSlash('/stop');
-  }
-
-  eventOn(getButtonEvent(BUTTON_NAME), () => {
-    if (isAutomationRunning) {
-      stopAutomation();
-    } else {
-      startAutomation();
-    }
-  });
-
-  (async function () {
-    try {
-      const scriptId = getScriptId();
-      if (scriptId) {
-        appendInexistentScriptButtons(scriptId, [{ name: BUTTON_NAME, visible: true }]);
-      }
-    } catch (e) {
-      console.log(`无法自动添加“${BUTTON_NAME}”按钮。请在脚本设置中手动添加。`);
-    }
-  })();
 })();
