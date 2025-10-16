@@ -93,6 +93,7 @@
       { name: '提取句子(SSC)', action: handleExtract, info: '从最后一条消息中提取包含禁用词的句子。' },
       { name: '优化并替换(SSC)', action: handleOptimize, info: '优化后，在弹出框中确认替换。' },
       { name: '全自动优化(SSC)', action: handleFullAuto, info: '自动执行“提取-优化-替换”的完整流程。' },
+      { name: '真·自动化运行', action: handleTrulyFullAuto, info: '全自动优化，直到编号数量一致。' },
     ];
 
     // --- 按钮功能实现 ---
@@ -259,7 +260,94 @@
       }
     }
 
+    // 对应 "真·自动化运行"
+    async function handleTrulyFullAuto() {
+        const MAX_AUTO_RETRIES = 5; // 防止死循环，最多重试5次
+        let attempt = 0;
+
+        try {
+            toastr.info('“真·自动化运行”流程已启动...');
+
+            // 步骤 1: 提取内容 (无弹窗)
+            const sourceContent = await new Promise(resolve => {
+                api.manualOptimize(content => resolve(content));
+            });
+
+            if (!sourceContent) {
+                toastr.info('在最后一条角色消息中未找到可优化的内容，流程中止。');
+                return;
+            }
+            toastr.success('步骤 1: 内容提取成功。');
+            const originalSourceContent = sourceContent;
+
+            while (attempt < MAX_AUTO_RETRIES) {
+                attempt++;
+                toastr.info(`步骤 2 (第 ${attempt} 次尝试): 正在发送给 AI 优化...`);
+
+                // 步骤 2: 优化
+                const lastCharMessage = await getLastCharMessage();
+                const systemPrompt = typeof api.getSystemPrompt === 'function' ? api.getSystemPrompt() : '';
+                const optimizedResultText = await api.optimizeText(originalSourceContent, systemPrompt, lastCharMessage);
+
+                if (optimizedResultText === null) {
+                    toastr.warning('优化过程被用户手动取消，流程中止。');
+                    return;
+                }
+                if (!optimizedResultText) {
+                    toastr.error(`AI 未能返回优化后的文本 (第 ${attempt} 次尝试)。`);
+                    if (attempt >= MAX_AUTO_RETRIES) {
+                        toastr.error('已达到最大重试次数，流程失败。');
+                        return;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // 等待1秒再重试
+                    continue; // 重试循环
+                }
+
+                // 步骤 3: 检查编号数量
+                const originalCount = countSentenceNumbers(originalSourceContent);
+                const optimizedCount = countSentenceNumbers(optimizedResultText);
+
+                toastr.info(`编号检查: 原始 (${originalCount}) vs 优化后 (${optimizedCount})`);
+
+                if (originalCount === optimizedCount) {
+                    // 数量一致，执行替换
+                    toastr.success('编号数量一致，准备执行替换。');
+                    await new Promise(resolve => {
+                        api.replaceMessage(originalSourceContent, optimizedResultText, newContent => {
+                            if (newContent) {
+                                toastr.success('替换完成！“真·自动化运行”流程结束。', '成功', { timeOut: 5000 });
+                            }
+                            resolve();
+                        });
+                    });
+                    return; // 成功，退出函数
+                } else {
+                    // 数量不一致，准备下一次循环
+                    toastr.warning(`编号数量不一致，将在1秒后自动重试... (第 ${attempt}/${MAX_AUTO_RETRIES} 次)`);
+                    if (attempt >= MAX_AUTO_RETRIES) {
+                        toastr.error('已达到最大重试次数，但编号数量仍不一致。流程中止。');
+                        return;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // 等待1秒
+                }
+            }
+        } catch (error) {
+            console.error('[Truly Auto Optimizer] 流程执行出错:', error);
+            toastr.error(error.message, '“真·自动化运行”流程失败', { timeOut: 10000 });
+        }
+    }
+
     // --- 辅助函数 ---
+    // --- 辅助函数 ---
+
+    // 计算字符串中句子编号的数量 (例如 "1. xxx 2. xxx")
+    function countSentenceNumbers(text) {
+        if (!text) return 0;
+        // 匹配以 "数字."、"数字、" 或 "数字，" 开头的行，允许前面有空格
+        const matches = text.match(/^[ \t]*\d+[.,、．]/gm);
+        return matches ? matches.length : 0;
+    }
+
     async function getLastCharMessage() {
       try {
         const lastMessageId = await getLastMessageId();

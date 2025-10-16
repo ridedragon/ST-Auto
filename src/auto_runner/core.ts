@@ -174,7 +174,7 @@ async function triggerSscAndProcess(): Promise<boolean> {
     // 即使找不到API，也继续执行“一键处理”
     toastr.info('执行“一键处理”...');
     await eventEmit(getButtonEvent('一键处理'));
-    await delay(4000);
+    await delay(5000);
     return true;
   }
 
@@ -260,7 +260,7 @@ async function triggerSscAndProcess(): Promise<boolean> {
     // 执行“一键处理”
     toastr.info('执行“一键处理”...');
     await eventEmit(getButtonEvent('一键处理'));
-    await delay(4000);
+    await delay(5000);
 
     return true; // 成功
   } catch (error) {
@@ -339,7 +339,7 @@ async function runAutomation() {
       
       toastr.info('以用户身份发送处理后的消息...');
       // 使用 /send 命令，它默认以用户身份发送
-      await triggerSlash(`/send "${processedReply.replace(/"/g, '\\"')}"`);
+      await triggerSlash(`/send "${processedReply.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`);
       await triggerSlash('/trigger await=true'); // 触发主AI生成
     }
 
