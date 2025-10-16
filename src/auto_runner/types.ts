@@ -21,7 +21,7 @@ export const SettingsSchema = z.object({
 /<UpdateVariable>[\s\S]*?</UpdateVariable>/gm`
   ),
   subAiRegex: z.string().default(''),
-  subAiRegexReplacement: z.string().default(''),
+  subAiRegexReplacement: z.preprocess((val) => val ?? '', z.string()),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

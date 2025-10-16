@@ -92,7 +92,6 @@ const models = ref<string[]>([]);
 onMounted(async() => {
   try {
     const savedSettings = getVariables({ type: 'script', script_id: getScriptId() }) || {};
-    console.log('【调试信息】从酒馆助手获取的原始设置:', savedSettings);
     const defaultSettings = SettingsSchema.parse({});
     const mergedSettings = _.merge(defaultSettings, savedSettings);
     settings.value = SettingsSchema.parse(mergedSettings);
