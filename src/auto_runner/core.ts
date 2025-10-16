@@ -254,7 +254,10 @@ async function triggerSscAndProcess(): Promise<boolean> {
       });
     }
 
-    // 总是执行“一键处理”
+    // 等待SSC渲染
+    await delay(2000);
+
+    // 执行“一键处理”
     toastr.info('执行“一键处理”...');
     await eventEmit(getButtonEvent('一键处理'));
     await delay(4000);

@@ -2,7 +2,7 @@
 // @name         触发AI文本优化助手
 // @version      1.1
 // @description  通过按钮远程触发 ST-Specific-Sentence-Correction 扩展的核心功能。
-// @author       Cline
+// @author       ridedragon
 // ==/UserScript==
 (function () {
   'use strict';
