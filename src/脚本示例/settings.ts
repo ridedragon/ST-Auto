@@ -31,4 +31,3 @@ function parsePrettified<T>(schema: z.ZodType<T>, data: unknown): T {
   }
   return result.data;
 }
-

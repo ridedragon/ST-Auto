@@ -64,10 +64,10 @@ export function startAutomation() {
   if (isAutomationRunning) return;
   isAutomationRunning = true;
   toastr.success('全自动运行已启动！', '自动化控制');
-  
+
   // 监听AI消息完成事件来驱动循环
   eventOn(tavern_events.MESSAGE_RECEIVED, runAutomationCycle);
-  
+
   // 立即执行一次以启动流程
   runAutomationCycle();
 }
@@ -75,10 +75,10 @@ export function startAutomation() {
 export function stopAutomation() {
   if (!isAutomationRunning) return;
   isAutomationRunning = false;
-  
+
   // 移除事件监听器以停止循环
   eventRemoveListener(tavern_events.MESSAGE_RECEIVED, runAutomationCycle);
-  
+
   toastr.info('全自动运行已停止。', '自动化控制');
   // 尝试停止任何可能正在进行的AI生成
   triggerSlash('/stop');
