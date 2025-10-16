@@ -23,8 +23,16 @@
             <hr />
 
             <div class="flex-container flexFlowColumn">
-                <div><strong>正则处理</strong></div>
+                <div><strong>上下文正则处理</strong></div>
                 <textarea v-model="settings.regex" class="text_pole" placeholder="输入正则表达式..."></textarea>
+            </div>
+
+            <hr />
+
+            <div class="flex-container flexFlowColumn">
+                <div><strong>副AI输出正则处理</strong></div>
+                <textarea v-model="settings.subAiRegex" class="text_pole" placeholder="输入正则表达式..."></textarea>
+                <textarea v-model="settings.subAiRegexReplacement" class="text_pole" placeholder="输入替换内容..."></textarea>
             </div>
 
             <hr />
@@ -65,8 +73,8 @@
                 <div><strong>自动化设置</strong></div>
                 <label for="auto_runner_total_replies">总回复次数</label>
                 <input id="auto_runner_total_replies" v-model.number="settings.totalReplies" type="number" class="text_pole" min="1" />
-                <label for="auto_runner_remaining_replies">剩余回复次数</label>
-                <input id="auto_runner_remaining_replies" v-model.number="settings.remainingReplies" type="number" class="text_pole" min="0" />
+                <label>自动执行次数</label>
+                <div class="text_pole">{{ settings.totalReplies - settings.remainingReplies }}/{{ settings.totalReplies }}</div>
             </div>
         </div>
     </div>

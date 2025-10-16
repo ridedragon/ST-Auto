@@ -20,6 +20,8 @@ export const SettingsSchema = z.object({
 (<!--\s*consider\s*:\s*(.*?)\s*-->)|(.*?<\/think(ing)?>(\n)?)|(<think(ing)?>[\s\S]*?<\/think(ing)?>(\n)?)
 /<UpdateVariable>[\s\S]*?</UpdateVariable>/gm`
   ),
+  subAiRegex: z.string().default(''),
+  subAiRegexReplacement: z.string().default(''),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

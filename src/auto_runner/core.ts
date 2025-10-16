@@ -25,8 +25,12 @@ async function onMessageReceived(message_id: number) {
 
   try {
     // 3. 获取聊天上下文并进行正则处理
+    const charName = await substitudeMacros('{{char}}');
+    const userName = await substitudeMacros('{{user}}');
     const lastId = await getLastMessageId();
-    const chatHistory = getChatMessages(`0-${lastId}`);
+    const allChatHistory = getChatMessages(`0-${lastId}`);
+    // 仅保留当前用户和AI角色的消息，过滤掉示例对话等
+    const chatHistory = allChatHistory.filter(msg => msg.name === userName || msg.name === charName);
     const regex = new RegExp(settings.regex, 'gm');
     const contextPrompt = chatHistory
       .map(msg => {
@@ -52,11 +56,24 @@ async function onMessageReceived(message_id: number) {
       throw new Error('副AI没有返回有效指令。');
     }
 
-    // 5. 将指令填入输入框并模拟点击发送
-    $('#send_textarea').val(nextUserInstruction);
+    // 5. 对副AI的输出进行正则处理
+    let processedInstruction = nextUserInstruction;
+    if (settings.subAiRegex) {
+      try {
+        const subAiRegex = new RegExp(settings.subAiRegex, 'gm');
+        processedInstruction = processedInstruction.replace(subAiRegex, settings.subAiRegexReplacement);
+      } catch (e: any) {
+        const error = e as Error;
+        console.error('副AI正则处理出错:', error);
+        toastr.error(`副AI正则处理错误: ${error.message}`);
+      }
+    }
+
+    // 6. 将指令填入输入框并模拟点击发送
+    $('#send_textarea').val(processedInstruction);
     $('#send_but').trigger('click');
 
-    // 6. 更新状态
+    // 7. 更新状态
     settings.remainingReplies--;
     replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
 
@@ -80,8 +97,8 @@ async function onMessageReceived(message_id: number) {
 function onUserMessage() {
     const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
     
-    // 当用户发送消息且脚本启用时，将总次数赋给剩余次数
-    if (settings.enabled) {
+    // 当用户发送消息、脚本启用且剩余次数为0时，才将总次数赋给剩余次数
+    if (settings.enabled && settings.remainingReplies === 0) {
         settings.remainingReplies = settings.totalReplies;
         replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
     }
