@@ -37,24 +37,37 @@ async function onMessageReceived(message_id: number) {
       })
       .join('\n');
 
-    // 4. 调用“副AI”生成下一条指令
-    const nextUserInstruction = await generateRaw({
-      ordered_prompts: [
-        { role: 'system', content: contextPrompt },
-        { role: 'user', content: settings.prompt },
-      ],
-      custom_api: {
-        apiurl: settings.apiUrl,
-        key: settings.apiKey,
-        model: settings.model,
-        temperature: settings.temperature,
-        max_tokens: settings.max_tokens,
-      } as any,
-      should_stream: false,
-    });
+    // 4. 调用“副AI”生成下一条指令，并包含重试逻辑
+    let nextUserInstruction = '';
+    for (let i = 0; i < settings.maxRetries + 1; i++) {
+      const instruction = await generateRaw({
+        ordered_prompts: [
+          { role: 'system', content: contextPrompt },
+          { role: 'user', content: settings.prompt },
+        ],
+        custom_api: {
+          apiurl: settings.apiUrl,
+          key: settings.apiKey,
+          model: settings.model,
+          temperature: settings.temperature,
+          max_tokens: settings.max_tokens,
+        } as any,
+        should_stream: false,
+      });
 
-    if (!nextUserInstruction || nextUserInstruction.trim() === '') {
-      throw new Error('副AI没有返回有效指令。');
+      if (instruction && instruction.trim() !== '') {
+        nextUserInstruction = instruction;
+        break;
+      }
+
+      if (i < settings.maxRetries) {
+        toastr.warning(`副AI返回空，将在1秒后重试 (${i + 1}/${settings.maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    if (!nextUserInstruction) {
+      throw new Error('副AI在多次重试后仍未返回有效指令。');
     }
 
     // 5. 对副AI的输出进行正则处理

@@ -22,6 +22,7 @@ export const SettingsSchema = z.object({
   ),
   subAiRegex: z.string().default(''),
   subAiRegexReplacement: z.preprocess((val) => val ?? '', z.string()),
+  maxRetries: z.coerce.number().min(0).default(3),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

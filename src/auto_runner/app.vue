@@ -73,6 +73,8 @@
                 <div><strong>自动化设置</strong></div>
                 <label for="auto_runner_total_replies">总回复次数</label>
                 <input id="auto_runner_total_replies" v-model.number="settings.totalReplies" type="number" class="text_pole" min="1" />
+                <label for="auto_runner_max_retries">最大重试次数</label>
+                <input id="auto_runner_max_retries" v-model.number="settings.maxRetries" type="number" class="text_pole" min="0" />
                 <label>自动执行次数</label>
                 <div class="text_pole">{{ settings.totalReplies - settings.remainingReplies }}/{{ settings.totalReplies }}</div>
             </div>
