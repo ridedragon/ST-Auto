@@ -84,6 +84,7 @@
 import { ref, onMounted, watch } from 'vue';
 import _ from 'lodash';
 import { SettingsSchema, type Settings } from './types';
+import { start, stop } from './core';
 
 const settings = ref<Settings>(SettingsSchema.parse({}));
 const models = ref<string[]>([]);
@@ -116,10 +117,17 @@ watch(settings, async (newSettings) => {
   }
 }, { deep: true });
 
-// 启用脚本时重置计数器
+// 监视脚本启用/禁用状态
 watch(() => settings.value.enabled, (newValue, oldValue) => {
   if (newValue === true && oldValue === false) {
+    // 启用脚本时，重置计数器并启动核心逻辑
     settings.value.remainingReplies = settings.value.totalReplies;
+    start();
+    toastr.info('自动化脚本已启动。');
+  } else if (newValue === false && oldValue === true) {
+    // 禁用脚本时，停止核心逻辑
+    stop();
+    toastr.info('自动化脚本已停止。');
   }
 });
 

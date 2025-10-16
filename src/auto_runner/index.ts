@@ -1,4 +1,4 @@
-import { start } from './core';
+import { start, stop } from './core';
 import { initPanel, destroyPanel } from './panel';
 
 $(() => {
@@ -12,4 +12,6 @@ $(() => {
 $(window).on('pagehide', () => {
   // 卸载面板
   destroyPanel();
+  // 停止核心自动化逻辑
+  stop();
 });

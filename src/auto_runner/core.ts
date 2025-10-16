@@ -4,17 +4,16 @@ import { SettingsSchema, type Settings } from './types';
 let isRunning = false;
 
 async function onMessageReceived(message_id: number) {
-  setTimeout(async () => {
-    // 增加一个短暂的延迟，以确保消息已完全注册
-    await new Promise(resolve => setTimeout(resolve, 100));
+  // 增加一个短暂的延迟，以确保消息已完全注册
+  await new Promise(resolve => setTimeout(resolve, 100));
 
-    // 1. 获取最新设置和消息
+  // 1. 获取最新设置和消息
   const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
   const lastMessage = getChatMessages(message_id)[0];
 
   // 2. 检查触发条件
   console.log('[诊断] 获取到的消息对象:', lastMessage);
-  if (!settings.enabled || !lastMessage || lastMessage.role !== 'assistant' || settings.remainingReplies <= 0) {
+  if (!settings.enabled || !lastMessage || lastMessage.role !== 'assistant' || settings.remainingReplies <= 0 || isRunning) {
     return;
   }
 
@@ -38,17 +37,18 @@ async function onMessageReceived(message_id: number) {
       .join('\n');
 
     // 4. 调用“副AI”生成下一条指令
-    const finalPrompt = `${contextPrompt}\n\n${settings.prompt}`;
-    console.log('发送给副AI的最终提示词:', finalPrompt);
-    const nextUserInstruction = await generate({
-      user_input: finalPrompt,
+    const nextUserInstruction = await generateRaw({
+      ordered_prompts: [
+        { role: 'system', content: contextPrompt },
+        { role: 'user', content: settings.prompt },
+      ],
       custom_api: {
         apiurl: settings.apiUrl,
         key: settings.apiKey,
         model: settings.model,
         temperature: settings.temperature,
         max_tokens: settings.max_tokens,
-      } as any, // HACK: 绕过类型检查
+      } as any,
       should_stream: false,
     });
 
@@ -93,7 +93,6 @@ async function onMessageReceived(message_id: number) {
       await replaceVariables(_.cloneDeep(finalSettings), { type: 'script', script_id: getScriptId() });
     }
   }
-}, 0);
 }
 
 export function start() {
@@ -101,4 +100,10 @@ export function start() {
   eventOn(tavern_events.CHARACTER_MESSAGE_RENDERED, onMessageReceived);
 
   console.log('自动化运行脚本已启动并监听事件。');
+}
+
+export function stop() {
+  eventRemoveListener(tavern_events.CHARACTER_MESSAGE_RENDERED, onMessageReceived);
+  isRunning = false;
+  console.log('自动化运行脚本已停止。');
 }
