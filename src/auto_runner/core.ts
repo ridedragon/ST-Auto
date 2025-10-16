@@ -114,7 +114,7 @@ async function onUserMessage() {
 
 export function start() {
   // 监听 AI 回复完成
-  eventOn(tavern_events.GENERATION_ENDED, onMessageReceived);
+  eventOn(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
   // 监听用户发送消息以启动计数器
   eventOn(tavern_events.MESSAGE_SENT, onUserMessage);
   
