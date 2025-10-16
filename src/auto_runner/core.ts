@@ -13,7 +13,7 @@ async function onMessageReceived(message_id: number) {
 
   // 1. 获取最新设置和消息
   const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
-  const lastMessage = getChatMessages(-1)[0];
+  const lastMessage = getChatMessages(message_id)[0];
 
   // 2. 检查触发条件
   if (!settings.enabled || !lastMessage || lastMessage.role !== 'assistant' || settings.remainingReplies <= 0) {
