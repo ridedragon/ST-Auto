@@ -40,8 +40,10 @@ async function onMessageReceived(message_id: number) {
       .join('\n');
 
     // 4. 调用“副AI”生成下一条指令
+    const finalPrompt = `${contextPrompt}\n\n${settings.prompt}`;
+    console.log('发送给副AI的内容:', finalPrompt);
     const nextUserInstruction = await generate({
-      user_input: `${contextPrompt}\n\n${settings.prompt}`,
+      user_input: finalPrompt,
       custom_api: {
         apiurl: settings.apiUrl,
         key: settings.apiKey,
