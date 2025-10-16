@@ -3,9 +3,9 @@ import { z } from 'zod';
 export const SettingsSchema = z.object({
   enabled: z.boolean().default(false),
   prompt: z.preprocess((val) => val ?? '', z.string()),
-  apiUrl: z.string().default(''),
-  apiKey: z.string().default(''),
-  model: z.string().default(''),
+  apiUrl: z.preprocess((val) => val ?? '', z.string()),
+  apiKey: z.preprocess((val) => val ?? '', z.string()),
+  model: z.preprocess((val) => val ?? '', z.string()),
   temperature: z.number().min(0).max(2).default(0.7),
   top_p: z.number().min(0).max(1).default(1),
   top_k: z.number().min(0).default(40),
@@ -20,7 +20,7 @@ export const SettingsSchema = z.object({
 (<!--\s*consider\s*:\s*(.*?)\s*-->)|(.*?<\/think(ing)?>(\n)?)|(<think(ing)?>[\s\S]*?<\/think(ing)?>(\n)?)
 /<UpdateVariable>[\s\S]*?</UpdateVariable>/gm`
   ),
-  subAiRegex: z.string().default(''),
+  subAiRegex: z.preprocess((val) => val ?? '', z.string()),
   subAiRegexReplacement: z.preprocess((val) => val ?? '', z.string()),
   maxRetries: z.coerce.number().min(0).default(3),
 });
