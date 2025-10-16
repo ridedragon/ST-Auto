@@ -78,6 +78,19 @@
                 <label>自动执行次数</label>
                 <div class="text_pole">{{ settings.totalReplies - settings.remainingReplies }}/{{ settings.totalReplies }}</div>
             </div>
+
+            <hr />
+
+            <div class="flex-container flexFlowColumn">
+                <div><strong>手动循环控制</strong></div>
+                <button 
+                    class="menu_button" 
+                    :class="isAutomationRunning ? 'primary-button' : 'secondary-button'"
+                    @click="toggleAutomation"
+                >
+                    {{ isAutomationRunning ? '停止全自动运行' : '启动全自动运行' }}
+                </button>
+            </div>
         </div>
     </div>
 </template>
@@ -86,8 +99,9 @@
 import { ref, onMounted, watch } from 'vue';
 import _ from 'lodash';
 import { SettingsSchema, type Settings } from './types';
-import { start, stop } from './core';
+import { start, stop, startAutomation, stopAutomation } from './core';
 
+const isAutomationRunning = ref(false);
 const settings = ref<Settings>(SettingsSchema.parse({}));
 const models = ref<string[]>([]);
 
@@ -157,6 +171,15 @@ const getModels = async () => {
     }
 };
 
+const toggleAutomation = () => {
+  if (isAutomationRunning.value) {
+    stopAutomation();
+    isAutomationRunning.value = false;
+  } else {
+    startAutomation();
+    isAutomationRunning.value = true;
+  }
+};
 </script>
 
 <style lang="scss" scoped>
