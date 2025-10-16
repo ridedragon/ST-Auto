@@ -292,15 +292,16 @@ async function runAutomation() {
       // 主AI响应完成后，绑定的 tavern_events.MESSAGE_RECEIVED 事件会再次触发 runAutomation
     } else {
       // --- 分支 B: 最后一条是AI消息 ---
-      toastr.info('检测到AI消息，开始完整循环...');
+      toastr.info('检测到AI消息，开始调用副AI...');
 
-      // 步骤 1 & 2: SSC 和 一键处理
-      const processSuccess = await triggerSscAndProcess();
-      if (!processSuccess) {
-        toastr.warning('用户取消了操作，全自动运行已停止。');
-        stopAutomation();
-        return;
-      }
+      // 根据用户反馈，在调用副AI时不执行任何按钮功能
+      // // 步骤 1 & 2: SSC 和 一键处理
+      // const processSuccess = await triggerSscAndProcess();
+      // if (!processSuccess) {
+      //   toastr.warning('用户取消了操作，全自动运行已停止。');
+      //   stopAutomation();
+      //   return;
+      // }
 
       // 步骤 3: 发送给副AI
       const subAiReply = await callSubAI();
