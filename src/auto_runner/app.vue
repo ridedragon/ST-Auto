@@ -116,6 +116,13 @@ watch(settings, async (newSettings) => {
   }
 }, { deep: true });
 
+// 启用脚本时重置计数器
+watch(() => settings.value.enabled, (newValue, oldValue) => {
+  if (newValue === true && oldValue === false) {
+    settings.value.remainingReplies = settings.value.totalReplies;
+  }
+});
+
 
 // 获取模型列表
 const getModels = async () => {

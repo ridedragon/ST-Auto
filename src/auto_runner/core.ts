@@ -13,7 +13,6 @@ async function onMessageReceived(message_id: number) {
   const lastMessage = getChatMessages(message_id)[0];
 
   // 2. 检查触发条件
-  console.log('[诊断] 获取到的消息对象:', lastMessage);
   if (!settings.enabled || !lastMessage || lastMessage.role !== 'assistant' || settings.remainingReplies <= 0) {
     return;
   }
@@ -95,21 +94,9 @@ async function onMessageReceived(message_id: number) {
   }
 }
 
-async function onUserMessage() {
-  const settings: Settings = SettingsSchema.parse(getVariables({ type: 'script', script_id: getScriptId() }) || {});
-
-  // 当用户发送消息、脚本启用且剩余次数为0时，才将总次数赋给剩余次数
-  if (settings.enabled && settings.remainingReplies === 0) {
-    settings.remainingReplies = settings.totalReplies;
-    await replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
-  }
-}
-
 export function start() {
   // 监听 AI 回复完成
   eventOn(tavern_events.CHARACTER_MESSAGE_RENDERED, onMessageReceived);
-  // 监听用户发送消息以启动计数器
-  eventOn(tavern_events.MESSAGE_SENT, onUserMessage);
 
   console.log('自动化运行脚本已启动并监听事件。');
 }
