@@ -316,34 +316,17 @@
                 const result = await handleFullAuto();
 
                 if (result === 'SUCCESS') {
-                    // 优化成功，将优化后的消息作为用户输入，触发主AI
-                    toastr.info('[自动运行] SSC优化成功，将作为用户输入触发主AI...');
-                    const finalMessage = (getChatMessages(-1) || [])[0];
-                    if (!finalMessage || finalMessage.role !== 'assistant') {
-                        toastr.warning('[自动运行] 优化后未能获取到有效的AI消息，流程暂停。');
-                        stopAutomation();
-                        return;
-                    }
-                    $('#send_textarea').val(finalMessage.message);
-                    $('#send_but').trigger('click');
-
-                    // 等待主AI生成完毕
-                    await new Promise(resolve => {
-                        eventOnce(tavern_events.GENERATION_ENDED, () => resolve(true));
-                        eventOnce(tavern_events.GENERATION_STOPPED, () => resolve(false));
-                    });
+                    // 优化成功，流程的这一轮结束。
+                    toastr.info('[自动运行] SSC优化成功，本轮自动化执行完毕。');
+                    // 停止自动化，等待下一次手动触发。
+                    stopAutomation();
+                    return;
 
                 } else if (result === 'NO_CONTENT') {
-                    // 没有可优化的内容，说明AI回复很完美，直接让“用户”（副AI）继续
-                    toastr.info('[自动运行] 未找到可优化内容，模拟用户继续对话...');
-                    $('#send_textarea').val('（继续）'); // 或者其他提示继续的词
-                    $('#send_but').trigger('click');
-                    
-                    // 等待主AI生成完毕
-                     await new Promise(resolve => {
-                        eventOnce(tavern_events.GENERATION_ENDED, () => resolve(true));
-                        eventOnce(tavern_events.GENERATION_STOPPED, () => resolve(false));
-                    });
+                    // 没有可优化的内容，说明AI回复很完美，同样结束本轮。
+                    toastr.info('[自动运行] 未找到可优化内容，本轮自动化执行完毕。');
+                    stopAutomation();
+                    return;
 
                 } else if (result === 'CANCELLED') {
                     // 用户手动取消，停止自动化
@@ -354,11 +337,6 @@
                     // 其他失败情况
                     toastr.warning('[自动运行] SSC流程未成功完成，流程暂停。');
                     stopAutomation();
-                    return;
-                }
-
-                if (!isAutomationRunning) {
-                    toastr.info('自动化在等待AI生成时被手动停止。');
                     return;
                 }
 
