@@ -41,7 +41,7 @@ async function onMessageReceived(message_id: number) {
 
     // 4. 调用“副AI”生成下一条指令
     const finalPrompt = `${contextPrompt}\n\n${settings.prompt}`;
-    console.log('发送给副AI的内容:', finalPrompt);
+    console.log('发送给副AI的最终提示词:', finalPrompt);
     const nextUserInstruction = await generate({
       user_input: finalPrompt,
       custom_api: {
