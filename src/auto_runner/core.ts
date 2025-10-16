@@ -292,21 +292,39 @@ async function runAutomation() {
       // 主AI响应完成后，绑定的 tavern_events.MESSAGE_RECEIVED 事件会再次触发 runAutomation
     } else {
       // --- 分支 B: 最后一条是AI消息 ---
-      toastr.info('检测到AI消息，开始调用副AI...');
+      toastr.info('检测到AI消息，开始完整循环...');
 
-      // 根据用户反馈，在调用副AI时不执行任何按钮功能
-      // // 步骤 1 & 2: SSC 和 一键处理
-      // const processSuccess = await triggerSscAndProcess();
-      // if (!processSuccess) {
-      //   toastr.warning('用户取消了操作，全自动运行已停止。');
-      //   stopAutomation();
-      //   return;
-      // }
+      // 步骤 1 & 2: SSC 和 一键处理
+      const processSuccess = await triggerSscAndProcess();
+      if (!processSuccess) {
+        toastr.warning('用户取消了操作，全自动运行已停止。');
+        stopAutomation();
+        return;
+      }
 
-      // 步骤 3: 发送给副AI
-      const subAiReply = await callSubAI();
+      // 步骤 3: 发送给副AI，并包含重试逻辑
+      let subAiReply: string | null = null;
+      let subAiRetryCount = 0;
+      while (subAiRetryCount <= settings.maxRetries) {
+        subAiReply = await callSubAI();
+        if (subAiReply) {
+          break; // 成功获取回复，跳出循环
+        }
+        subAiRetryCount++;
+        if (subAiRetryCount > settings.maxRetries) {
+          toastr.error(`调用副AI已达到最大重试次数 (${settings.maxRetries})，自动化已停止。`);
+          stopAutomation();
+          return;
+        }
+        toastr.warning(`调用副AI失败，将在5秒后重试 (${subAiRetryCount}/${settings.maxRetries})`);
+        await delay(5000);
+      }
+
       if (!subAiReply) {
-        throw new Error('未能从副AI获取回复');
+        // 理论上不会执行到这里，因为上面的循环会return
+        toastr.error('未能从副AI获取回复，自动化已停止。');
+        stopAutomation();
+        return;
       }
 
       // 步骤 4: 处理副AI回复并以用户身份发送
@@ -323,19 +341,12 @@ async function runAutomation() {
     }
 
     await incrementExecutedCount();
-    retryCount = 0; // 成功后重置重试次数
   } catch (error) {
+    // 这个 catch 现在只处理 triggerSscAndProcess 和 triggerSlash 中的意外错误
     console.error('自动化循环出错:', error);
-    retryCount++;
-    if (retryCount > settings.maxRetries) {
-      toastr.error('已达到最大重试次数，自动化已停止。');
-      state = AutomationState.ERROR;
-      stopAutomation();
-    } else {
-      toastr.warning(`自动化循环出错，将在5秒后重试 (${retryCount}/${settings.maxRetries})`);
-      await delay(5000);
-      runAutomation(); // 重试
-    }
+    toastr.error(`自动化循环发生意外错误: ${(error as Error).message}，流程已终止。`);
+    state = AutomationState.ERROR;
+    stopAutomation();
   }
 }
 
