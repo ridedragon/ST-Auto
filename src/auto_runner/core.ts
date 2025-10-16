@@ -200,7 +200,8 @@ async function runAutomation() {
       console.log('处理后的回复:', processedReply);
       
       toastr.info('以用户身份发送处理后的消息...');
-      await triggerSlash(`/sendas name={{user}} "${processedReply.replace(/"/g, '\\"')}"`);
+      // 使用 /send 命令，它默认以用户身份发送
+      await triggerSlash(`/send "${processedReply.replace(/"/g, '\\"')}"`);
       await triggerSlash('/trigger await=true'); // 触发主AI生成
     }
 
