@@ -413,25 +413,25 @@
   let isAutomationRunning = false;
 
   async function automationLoop() {
+    // 启动时，先处理一次初始状态
+    try {
+      const lastMessage = (getChatMessages(-1) || [])[0];
+      if (lastMessage && lastMessage.role === 'user') {
+        toastr.info('[自动运行] 检测到用户消息，首先触发主AI生成...');
+        await triggerSlash('/trigger await=true');
+      }
+    } catch (error) {
+      console.error('[全自动运行] 启动时检查出错:', error);
+      toastr.error('启动时检查最后一条消息出错，请查看控制台。');
+      stopAutomation(); // 启动失败则立即停止
+      return;
+    }
+
+    // 进入主循环
     while (isAutomationRunning) {
       try {
-        // 获取最后一条消息
-        const lastMessage = (getChatMessages(-1) || [])[0];
-        if (!lastMessage) {
-          toastr.warning('无法获取最后一条消息，自动化已暂停。');
-          stopAutomation();
-          return; // 退出循环
-        }
-
-        // 如果最后一条是用户消息，则先让主AI回复
-        if (lastMessage.role === 'user') {
-          toastr.info('[自动运行] 检测到用户消息，触发主AI生成...');
-          await triggerSlash('/trigger await=true');
-          // 主AI回复后，循环将进入下一次迭代，届时最后一条消息将是AI消息
-          continue; // 继续下一次循环
-        }
-
-        // --- 到这里，最后一条消息一定是AI消息 ---
+        // 在每次循环开始时，我们都假定最后一条消息是主AI的回复，需要被处理
+        toastr.info('[自动运行] 开始新一轮处理...');
 
         // 1. 触发“全自动优化(SSC)”
         toastr.info('[自动运行] 步骤 1/3: 触发“全自动优化(SSC)”...');
@@ -446,19 +446,19 @@
         // 3. 将处理后的消息发送给副AI
         const finalMessage = (getChatMessages(-1) || [])[0];
         if (!finalMessage || finalMessage.role !== 'assistant') {
-            toastr.warning('[自动运行] 优化/处理后未能获取到有效的AI消息，流程暂停。');
-            stopAutomation();
-            return;
+          toastr.warning('[自动运行] 优化/处理后未能获取到有效的AI消息，流程暂停。');
+          stopAutomation();
+          return; // 退出循环
         }
         toastr.info(`[自动运行] 步骤 3/3: 发送给 ${SUB_AI_NAME}...`);
         await triggerSlash(`/sendas name=${SUB_AI_NAME} "${finalMessage.message.replace(/"/g, '\\"')}"`);
         toastr.success(`[自动运行] 已成功发送给 ${SUB_AI_NAME}。`);
 
-        // 4. 触发主AI对副AI的发言进行回复
+        // 4. 触发主AI对副AI的发言进行回复，这是本轮循环的最后一步
         toastr.info('[自动运行] 触发主AI以继续对话...');
         await triggerSlash('/trigger await=true');
         
-        // 一轮循环结束，等待下一次迭代
+        // 主AI回复后，循环将自然进入下一次迭代，处理这条新的AI消息
 
       } catch (error) {
         console.error('[全自动运行] 循环出错:', error);
@@ -473,7 +473,7 @@
     if (isAutomationRunning) return;
     isAutomationRunning = true;
     toastr.success('全自动运行已启动！', '自动化控制');
-    automationLoop(); // 启动循环
+    automationLoop(); // 启动主循环
   }
 
   function stopAutomation() {
