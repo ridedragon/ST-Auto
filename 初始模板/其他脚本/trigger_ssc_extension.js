@@ -403,3 +403,93 @@
         }
     })();
 })();
+
+(function () {
+  'use strict';
+
+  const BUTTON_NAME = '全自动运行';
+  const SUB_AI_NAME = '副AI'; // 请根据实际情况修改副AI的名字
+
+  let isAutomationRunning = false;
+
+  async function runAutomationCycle() {
+    if (!isAutomationRunning) {
+      return;
+    }
+
+    try {
+      const lastMessage = (getChatMessages(-1) || [])[0];
+      if (!lastMessage) {
+        toastr.warning('无法获取最后一条消息，自动化已暂停。');
+        stopAutomation();
+        return;
+      }
+
+      if (lastMessage.role === 'user') {
+        toastr.info('[自动运行] 检测到用户消息，触发主AI生成...');
+        await triggerSlash('/trigger await=true');
+      } else {
+        toastr.info('[自动运行] 检测到AI消息，开始处理流程...');
+        
+        toastr.info('[自动运行] 步骤 1/3: 触发“全自动优化(SSC)”...');
+        await eventEmit(getButtonEvent('全自动优化(SSC)'));
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        toastr.info('[自动运行] 步骤 2/3: 触发“一键处理”...');
+        await eventEmit(getButtonEvent('一键处理'));
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        toastr.info(`[自动运行] 步骤 3/3: 发送给 ${SUB_AI_NAME}...`);
+        const finalMessage = (getChatMessages(-1) || [])[0];
+
+        if (finalMessage && finalMessage.role === 'assistant') {
+          await triggerSlash(`/sendas name=${SUB_AI_NAME} "${finalMessage.message.replace(/"/g, '\\"')}"`);
+          toastr.success(`[自动运行] 已成功发送给 ${SUB_AI_NAME}。等待主AI回复...`);
+          await triggerSlash('/trigger await=true');
+        } else {
+          toastr.warning('[自动运行] 未能获取到最终的AI消息，无法发送给副AI。流程暂停。');
+          stopAutomation();
+        }
+      }
+    } catch (error) {
+      console.error('[全自动运行] 循环出错:', error);
+      toastr.error('自动化运行时发生错误，请查看控制台。流程已终止。');
+      stopAutomation();
+    }
+  }
+
+  function startAutomation() {
+    if (isAutomationRunning) return;
+    isAutomationRunning = true;
+    toastr.success('全自动运行已启动！', '自动化控制');
+    eventOn(tavern_events.MESSAGE_RECEIVED, runAutomationCycle);
+    runAutomationCycle();
+  }
+
+  function stopAutomation() {
+    if (!isAutomationRunning) return;
+    isAutomationRunning = false;
+    eventRemoveListener(tavern_events.MESSAGE_RECEIVED, runAutomationCycle);
+    toastr.info('全自动运行已停止。', '自动化控制');
+    triggerSlash('/stop');
+  }
+
+  eventOn(getButtonEvent(BUTTON_NAME), () => {
+    if (isAutomationRunning) {
+      stopAutomation();
+    } else {
+      startAutomation();
+    }
+  });
+
+  (async function () {
+    try {
+      const scriptId = getScriptId();
+      if (scriptId) {
+        appendInexistentScriptButtons(scriptId, [{ name: BUTTON_NAME, visible: true }]);
+      }
+    } catch (e) {
+      console.log(`无法自动添加“${BUTTON_NAME}”按钮。请在脚本设置中手动添加。`);
+    }
+  })();
+})();
