@@ -70,6 +70,8 @@ async function onMessageReceived(message_id: number) {
       throw new Error('副AI在多次重试后仍未返回有效指令。');
     }
 
+    console.log('副AI原始输出:', nextUserInstruction);
+
     // 5. 对副AI的输出进行正则处理
     let processedInstruction = nextUserInstruction;
     if (settings.subAiRegex && settings.subAiRegex.trim() !== '') {
