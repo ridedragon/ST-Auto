@@ -290,8 +290,8 @@ async function runAutomation() {
   try {
     if (lastMessage.role === 'user') {
       // --- 分支 A: 最后一条是用户消息 ---
-      toastr.info('检测到用户消息，开始重新生成...');
-      await triggerSlash('/continue await=true');
+      toastr.info('检测到用户消息，触发主AI生成...');
+      await triggerSlash('/trigger await=true');
       // 主AI响应完成后，绑定的 tavern_events.MESSAGE_RECEIVED 事件会再次触发 runAutomation
     } else {
       // --- 分支 B: 最后一条是AI消息 ---
