@@ -283,7 +283,7 @@
 
     // --- 注册按钮和事件 ---
     buttons.forEach(button => {
-      eventOn(getButton-event(button.name), button.action);
+      eventOn(getButtonEvent(button.name), button.action);
     });
 
     // =================================================================
