@@ -16,6 +16,12 @@ async function onMessageReceived(message_id: number) {
   const lastMessage = getChatMessages(message_id)[0];
 
   // 2. 检查触发条件
+  console.log('检查触发条件:', {
+    enabled: settings.enabled,
+    lastMessage: !!lastMessage,
+    role: lastMessage?.role,
+    remainingReplies: settings.remainingReplies,
+  });
   if (!settings.enabled || !lastMessage || lastMessage.role !== 'assistant' || settings.remainingReplies <= 0) {
     return;
   }
