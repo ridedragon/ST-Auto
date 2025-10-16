@@ -16,12 +16,6 @@ async function onMessageReceived(message_id: number) {
   const lastMessage = getChatMessages(message_id)[0];
 
   // 2. 检查触发条件
-  console.log('检查触发条件:', {
-    enabled: settings.enabled,
-    lastMessage: !!lastMessage,
-    role: lastMessage?.role,
-    remainingReplies: settings.remainingReplies,
-  });
   if (!settings.enabled || !lastMessage || lastMessage.role !== 'assistant' || settings.remainingReplies <= 0) {
     return;
   }
@@ -114,7 +108,7 @@ async function onUserMessage() {
 
 export function start() {
   // 监听 AI 回复完成
-  eventOn(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
+  eventOn(tavern_events.CHARACTER_MESSAGE_RENDERED, onMessageReceived);
   // 监听用户发送消息以启动计数器
   eventOn(tavern_events.MESSAGE_SENT, onUserMessage);
   
