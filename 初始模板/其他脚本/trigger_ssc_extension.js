@@ -259,6 +259,44 @@
       }
     }
 
+    // 新增：一个真正全自动、无UI交互的SSC优化版本
+    async function runSSCOptimization_fullyAutomatic() {
+        try {
+            const sourceContent = await new Promise(resolve => {
+                api.manualOptimize(content => resolve(content));
+            });
+
+            if (!sourceContent) {
+                toastr.info('[自动运行] 未在最后一条消息中找到可优化的内容。');
+                return false; // 返回false表示没有执行任何操作
+            }
+
+            const lastCharMessage = await getLastCharMessage();
+            const systemPrompt = typeof api.getSystemPrompt === 'function' ? api.getSystemPrompt() : '';
+            const optimizedResultText = await api.optimizeText(sourceContent, systemPrompt, lastCharMessage);
+
+            if (!optimizedResultText) {
+                toastr.warning('[自动运行] AI未能返回优化后的文本。');
+                return false;
+            }
+
+            await new Promise(resolve => {
+                api.replaceMessage(sourceContent, optimizedResultText, newContent => {
+                    if (newContent) {
+                        toastr.success('SSC自动优化和替换完成！');
+                    }
+                    resolve(true);
+                });
+            });
+            return true; // 表示成功执行
+        } catch (error) {
+            console.error('[全自动运行] 内部SSC优化出错:', error);
+            toastr.error('执行内部SSC优化时发生错误。');
+            return false;
+        }
+    }
+
+
     // --- 辅助函数 ---
     async function getLastCharMessage() {
       try {
@@ -307,24 +345,29 @@
             try {
                 toastr.info('[自动运行] 开始新一轮处理...');
 
-                // 1. 直接调用并等待 handleFullAuto 完成
-                toastr.info('[自动运行] 步骤 1/2: 触发“全自动优化(SSC)”并等待用户确认...');
-                await handleFullAuto();
+                // 1. 调用并等待真正全自动的SSC优化函数
+                toastr.info('[自动运行] 步骤 1/2: 执行全自动SSC优化...');
+                const optimizationPerformed = await runSSCOptimization_fullyAutomatic();
                 
-                // handleFullAuto 内部已经包含了用户交互和替换，执行到这里时，消息已经被优化。
-                toastr.info('[自动运行] SSC优化完成。');
-
-                // 2. 将优化后的消息作为用户输入，触发主AI回复
-                const finalMessage = (getChatMessages(-1) || [])[0];
-                if (!finalMessage || finalMessage.role !== 'assistant') {
-                    toastr.warning('[自动运行] 优化后未能获取到有效的AI消息，流程暂停。');
-                    stopAutomation();
-                    return;
+                // 如果没有内容可优化，则直接触发主AI对原文进行回复，避免卡住
+                if (!optimizationPerformed) {
+                    toastr.info('[自动运行] 无内容可优化，直接由主AI继续...');
+                    $('#send_textarea').val((getChatMessages(-1) || [])[0].message);
+                    $('#send_but').trigger('click');
+                } else {
+                    toastr.info('[自动运行] SSC优化完成。');
+                    // 2. 将优化后的消息作为用户输入，触发主AI回复
+                    const finalMessage = (getChatMessages(-1) || [])[0];
+                    if (!finalMessage || finalMessage.role !== 'assistant') {
+                        toastr.warning('[自动运行] 优化后未能获取到有效的AI消息，流程暂停。');
+                        stopAutomation();
+                        return;
+                    }
+                    
+                    toastr.info('[自动运行] 步骤 2/2: 将优化后的消息作为用户输入，触发主AI...');
+                    $('#send_textarea').val(finalMessage.message);
+                    $('#send_but').trigger('click');
                 }
-                
-                toastr.info('[自动运行] 步骤 2/2: 将优化后的消息作为用户输入，触发主AI...');
-                $('#send_textarea').val(finalMessage.message);
-                $('#send_but').trigger('click');
 
                 // 等待主AI生成完毕
                 await new Promise(resolve => {
