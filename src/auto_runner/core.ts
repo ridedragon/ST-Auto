@@ -120,30 +120,19 @@ async function callSubAI(): Promise<string | null> {
   }
 
   // 准备提示词和聊天记录
-  const promptEntries = settings.promptEntries;
-  const chatHistoryIndex = promptEntries.findIndex(p => p.is_chat_history);
-
-  const promptMessages = promptEntries
-    .filter(p => !p.is_chat_history && p.enabled && p.content)
-    .map(p => ({ role: p.role, content: p.content }));
-
+  const finalMessages: { role: string; content: string }[] = [];
   const messagesForSubAI = allMessages.filter(msg => msg.role !== 'system');
   const processedChatMessages = messagesForSubAI.map(msg => {
     const content = applyRegexRules(msg.message, settings.contextRegexRules);
     return { role: msg.role, content };
   });
 
-  let finalMessages;
-  if (chatHistoryIndex !== -1) {
-    // 在占位符位置插入聊天记录
-    finalMessages = [
-      ...promptMessages.slice(0, chatHistoryIndex),
-      ...processedChatMessages,
-      ...promptMessages.slice(chatHistoryIndex),
-    ];
-  } else {
-    // 如果没有占位符，则将聊天记录放在最后
-    finalMessages = [...promptMessages, ...processedChatMessages];
+  for (const entry of settings.promptEntries) {
+    if (entry.is_chat_history) {
+      finalMessages.push(...processedChatMessages);
+    } else if (entry.enabled && entry.content) {
+      finalMessages.push({ role: entry.role, content: entry.content });
+    }
   }
 
   const body = {

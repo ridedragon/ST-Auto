@@ -5,7 +5,7 @@
       v-for="(entry, index) in entries"
       :key="entry.id"
       :class="['rule-item', { 'chat-history-placeholder': entry.is_chat_history }]"
-      :draggable="!entry.is_chat_history"
+      draggable="true"
       @dragstart="dragStart(index)"
       @dragover.prevent
       @drop="drop(index)"
@@ -138,6 +138,5 @@ function drop(targetIndex: number) {
 
 .chat-history-placeholder {
   background-color: var(--bg3) !important;
-  border-style: dashed !important;
 }
 </style>
