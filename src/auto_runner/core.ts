@@ -73,24 +73,27 @@ async function callSubAI(): Promise<string | null> {
   // 过滤掉主AI的预设提示词
   const messagesForSubAI = allMessages.filter(msg => msg.role !== 'system');
 
-  // 应用上下文正则
-  let contextString = messagesForSubAI.map(msg => `${msg.role}: ${msg.message}`).join('\n');
-  if (settings.regex) {
-    try {
-      const regex = new RegExp(settings.regex, 'gm');
-      contextString = contextString.replace(regex, '');
-    } catch (e) {
-      console.error('上下文正则表达式错误:', e);
-      toastr.warning('上下文正则表达式无效，已跳过处理。');
+  // 将聊天记录映射为 API 格式，并对每条消息应用上下文正则
+  const processedMessages = messagesForSubAI.map(msg => {
+    let content = msg.message;
+    if (settings.regex) {
+      try {
+        const regex = new RegExp(settings.regex, 'gm');
+        content = content.replace(regex, '');
+      } catch (e) {
+        console.error('上下文正则表达式错误:', e);
+        // 不提示 toastr，避免在控制台刷屏
+      }
     }
-  }
+    return { role: msg.role, content };
+  });
+
+  // 添加最后的、作为指令的 user 消息
+  processedMessages.push({ role: 'user', content: settings.prompt });
 
   const body = {
     model: settings.model,
-    messages: [
-      { role: 'system', content: settings.prompt },
-      { role: 'user', content: contextString },
-    ],
+    messages: processedMessages,
     temperature: settings.temperature,
     top_p: settings.top_p,
     top_k: settings.top_k,
