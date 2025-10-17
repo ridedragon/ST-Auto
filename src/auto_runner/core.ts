@@ -283,13 +283,17 @@ async function triggerSscAndProcess(): Promise<boolean> {
 
 // --- 主循环逻辑 ---
 
-async function runAutomation() {
+async function runAutomation(isFirstRun = false) {
   if (shouldStop()) {
     stopAutomation();
     return;
   }
 
-  await refreshSettings();
+  // 首次运行时，我们信任 startAutomation 中准备好的、最新的设置。
+  // 后续运行时，刷新以获取用户在UI上可能做出的新更改。
+  if (!isFirstRun) {
+    await refreshSettings();
+  }
   const lastMessage = (getChatMessages(-1) || [])[0];
 
   if (!lastMessage) {
@@ -368,7 +372,8 @@ async function runAutomation() {
 function onMessageReceived() {
   if (state === AutomationState.RUNNING) {
     // 等待一小段时间，确保酒馆完全处理完消息
-    setTimeout(runAutomation, 1000);
+    // 后续的运行都不是首次运行
+    setTimeout(() => runAutomation(false), 1000);
   }
 }
 
@@ -390,24 +395,27 @@ function forceStop() {
 async function startAutomation() {
   if (state === AutomationState.RUNNING) return;
 
-  // 根据用户建议，在执行前添加1秒延迟，以等待其他程序或UI更新完成
+  // 1. 增加延迟，等待酒馆环境稳定
   await delay(1000);
+
+  // 2. 首先，获取最新的设置，确保任何UI更改都已加载
+  await refreshSettings();
 
   toastr.success('全自动运行已启动！');
   state = AutomationState.RUNNING;
   retryCount = 0;
-  internalExemptionCounter = 0; // 在每次启动时重置内部豁免计数器
+  internalExemptionCounter = 0; // 重置内部豁免计数器
 
-  // 强制重置总执行计数器，并等待其保存完成
+  // 3. 在内存中重置总执行次数，并异步保存它以更新UI（无需等待）
   settings.executedCount = 0;
-  await replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
+  replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
 
-  // 绑定事件
+  // 4. 绑定事件
   eventOn(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
   eventOn(tavern_events.GENERATION_STOPPED, forceStop);
 
-  // 立即开始第一次循环
-  runAutomation();
+  // 5. 立即开始第一次循环，并告知这是“首次运行”，以使用内存中正确的设置
+  runAutomation(true);
 }
 
 /**
