@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { SettingsSchema, type Settings } from './types';
+import { SettingsSchema, type Settings, type RegexRule } from './types';
 
 // --- 状态管理 ---
 enum AutomationState {
@@ -15,6 +15,28 @@ let retryCount = 0;
 let internalExemptionCounter = 0; // 新增的、只在内存中的豁免计数器
 
 // --- 辅助函数 ---
+
+/**
+ * 应用一个正则表达式规则数组到文本上
+ * @param text 原始文本
+ * @param rules 规则数组
+ * @returns 处理后的文本
+ */
+function applyRegexRules(text: string, rules: readonly RegexRule[]): string {
+  let processedText = text;
+  for (const rule of rules) {
+    if (rule.enabled && rule.find) {
+      try {
+        const regex = new RegExp(rule.find, rule.flags);
+        processedText = processedText.replace(regex, rule.replace);
+      } catch (e) {
+        console.error(`正则表达式规则 "${rule.name || rule.id}" 无效:`, e);
+        // 避免在控制台刷屏
+      }
+    }
+  }
+  return processedText;
+}
 
 /**
  * 延迟指定毫秒
@@ -76,16 +98,7 @@ async function callSubAI(): Promise<string | null> {
 
   // 将聊天记录映射为 API 格式，并对每条消息应用上下文正则
   const processedMessages = messagesForSubAI.map(msg => {
-    let content = msg.message;
-    if (settings.regex) {
-      try {
-        const regex = new RegExp(settings.regex, 'gm');
-        content = content.replace(regex, '');
-      } catch (e) {
-        console.error('上下文正则表达式错误:', e);
-        // 不提示 toastr，避免在控制台刷屏
-      }
-    }
+    const content = applyRegexRules(msg.message, settings.contextRegexRules);
     return { role: msg.role, content };
   });
 
@@ -137,17 +150,7 @@ async function callSubAI(): Promise<string | null> {
  * @param reply 副AI的原始回复
  */
 function processSubAiResponse(reply: string): string {
-  if (!settings.subAiRegex) {
-    return reply;
-  }
-  try {
-    const regex = new RegExp(settings.subAiRegex, 'g');
-    return reply.replace(regex, settings.subAiRegexReplacement || '');
-  } catch (e) {
-    console.error('副AI输出正则表达式错误:', e);
-    toastr.warning('副AI输出正则表达式无效，已跳过处理。');
-    return reply;
-  }
+  return applyRegexRules(reply, settings.subAiRegexRules);
 }
 
 /**

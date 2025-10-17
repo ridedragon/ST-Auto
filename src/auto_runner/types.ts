@@ -1,5 +1,17 @@
 import { z } from 'zod';
 
+// 定义单条正则表达式规则的结构
+export const RegexRuleSchema = z.object({
+  id: z.string().default(() => `rule_${Date.now()}_${Math.random()}`),
+  name: z.string().default(''),
+  find: z.string().default(''),
+  replace: z.string().default(''),
+  enabled: z.boolean().default(true),
+  flags: z.string().default('g'),
+});
+
+export type RegexRule = z.infer<typeof RegexRuleSchema>;
+
 export const SettingsSchema = z.object({
   enabled: z.boolean().default(false),
   prompt: z.preprocess(val => val ?? '', z.string()),
@@ -12,16 +24,16 @@ export const SettingsSchema = z.object({
   max_tokens: z.coerce.number().min(1).default(1024),
   totalReplies: z.coerce.number().min(1).default(10),
   executedCount: z.coerce.number().min(0).default(0),
-  regex: z.string().default(
-    String.raw`<StatusPlaceHolderImpl\/>|
-\s*<!--[\s\S]*?-->|
-(<disclaimer>.*?<\/disclaimer>)|(<guifan>.*?<\/guifan>)|
-\`\`\`start|<content>|<\/content>|\`\`\`end|<done>|\`<done>\`|
-(<!--\s*consider\s*:\s*(.*?)\s*-->)|(.*?<\/think(ing)?>(\n)?)|(<think(ing)?>[\s\S]*?<\/think(ing)?>(\n)?)|
-<UpdateVariable>[\s\S]*?</UpdateVariable>`,
-  ),
-  subAiRegex: z.preprocess(val => val || String.raw`^.*?<\/think(ing)?>\s*`, z.string()),
-  subAiRegexReplacement: z.preprocess(val => val ?? '', z.string()),
+  
+  // 新的正则表达式规则数组
+  contextRegexRules: z.array(RegexRuleSchema).default([
+    { id: 'default_1', name: '移除 StatusPlaceHolderImpl', find: '<StatusPlaceHolderImpl\\/>', replace: '', enabled: true, flags: 'g' },
+    { id: 'default_2', name: '移除 HTML 注释', find: '\\s*<!--[\\s\\S]*?-->\\s*', replace: '', enabled: true, flags: 'g' },
+    { id: 'default_3', name: '移除特定标签和内容', find: '(<disclaimer>.*?<\\/disclaimer>)|(<guifan>.*?<\\/guifan>)|```start|<content>|<\\/content>|```end|<done>|`<done>`|(<!--\\s*consider\\s*:(.*?)\\s*-->)|(.*?<\\/think(ing)?>(\\n)?)|(<think(ing)?>[\\s\\S]*?<\\/think(ing)?>(\\n)?)', replace: '', enabled: true, flags: 'gs' },
+    { id: 'default_4', name: '移除 UpdateVariable 标签', find: '<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>', replace: '', enabled: true, flags: 'gm' },
+  ]),
+  subAiRegexRules: z.array(RegexRuleSchema).default([]),
+
   maxRetries: z.coerce.number().min(0).default(3),
   exemptionCount: z.coerce.number().min(0).default(0),
 });

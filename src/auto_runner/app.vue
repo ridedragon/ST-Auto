@@ -9,7 +9,7 @@
       <div class="flex-container flexFlowColumn">
         <label class="checkbox_label" for="auto_runner_enabled">
           <input id="auto_runner_enabled" v-model="settings.enabled" type="checkbox" />
-          <span>启用脚本</span>
+          <span>启用脚本 (核心功能)</span>
         </label>
       </div>
 
@@ -22,31 +22,50 @@
 
       <hr />
 
+      <!-- 新的上下文正则编辑器 -->
       <div class="flex-container flexFlowColumn">
         <div><strong>上下文正则处理</strong></div>
-        <textarea v-model="settings.regex" class="text_pole" placeholder="输入正则表达式..."></textarea>
+        <p class="description">在将聊天记录发送给副AI之前，按顺序应用以下规则。</p>
+        <div v-for="(rule, index) in settings.contextRegexRules" :key="rule.id" class="rule-item">
+          <div class="rule-header">
+            <input v-model="rule.enabled" type="checkbox" class="rule-toggle" />
+            <input v-model="rule.name" type="text" class="text_pole rule-name" placeholder="规则名称" />
+            <button class="menu_button" @click="removeRule('context', index)">删除</button>
+          </div>
+          <div class="rule-body">
+            <textarea v-model="rule.find" class="text_pole" placeholder="查找 (正则表达式)"></textarea>
+            <textarea v-model="rule.replace" class="text_pole" placeholder="替换为 (留空则为删除)"></textarea>
+            <div class="rule-flags">
+              <label>标志:</label>
+              <input v-model="rule.flags" type="text" class="text_pole" placeholder="如: gi" />
+            </div>
+          </div>
+        </div>
+        <button class="menu_button wide-button" @click="addRule('context')">添加上下文规则</button>
       </div>
 
       <hr />
 
+      <!-- 新的副AI输出正则编辑器 -->
       <div class="flex-container flexFlowColumn">
         <div><strong>副AI输出正则处理</strong></div>
-        <textarea v-model="settings.subAiRegex" class="text_pole" placeholder="输入正则表达式..."></textarea>
-        <textarea v-model="settings.subAiRegexReplacement" class="text_pole" placeholder="输入替换内容..."></textarea>
-      </div>
-
-      <hr />
-
-      <div class="flex-container flexFlowColumn">
-        <div><strong>处理后的副AI输出</strong></div>
-        <textarea
-          v-model="processedSubAiReply"
-          class="text_pole"
-          placeholder="这里是经过正则处理后的副AI输出..."
-        ></textarea>
-        <div class="flex-container">
-          <button class="menu_button wide-button" @click="sendProcessedSubAiReply">发送</button>
+        <p class="description">在收到副AI的回复后，按顺序应用以下规则。</p>
+        <div v-for="(rule, index) in settings.subAiRegexRules" :key="rule.id" class="rule-item">
+          <div class="rule-header">
+            <input v-model="rule.enabled" type="checkbox" class="rule-toggle" />
+            <input v-model="rule.name" type="text" class="text_pole rule-name" placeholder="规则名称" />
+            <button class="menu_button" @click="removeRule('subAi', index)">删除</button>
+          </div>
+          <div class="rule-body">
+            <textarea v-model="rule.find" class="text_pole" placeholder="查找 (正则表达式)"></textarea>
+            <textarea v-model="rule.replace" class="text_pole" placeholder="替换为 (留空则为删除)"></textarea>
+            <div class="rule-flags">
+              <label>标志:</label>
+              <input v-model="rule.flags" type="text" class="text_pole" placeholder="如: gi" />
+            </div>
+          </div>
         </div>
+        <button class="menu_button wide-button" @click="addRule('subAi')">添加副AI输出规则</button>
       </div>
 
       <hr />
@@ -144,12 +163,11 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import _ from 'lodash';
-import { SettingsSchema, type Settings } from './types';
+import { SettingsSchema, RegexRuleSchema, type Settings } from './types';
 import { start, stop } from './core';
 
 const settings = ref<Settings>(SettingsSchema.parse({}));
 const models = ref<string[]>([]);
-const processedSubAiReply = ref('');
 
 // 加载设置
 onMounted(async () => {
@@ -171,15 +189,14 @@ onMounted(async () => {
 // 监视设置变化并自动保存
 watch(
   settings,
-  async newSettings => {
+  _.debounce(async newSettings => {
     try {
       const validatedSettings = SettingsSchema.parse(newSettings);
       await replaceVariables(_.cloneDeep(validatedSettings), { type: 'script', script_id: getScriptId() });
     } catch (e: any) {
-      const error = e as Error;
-      console.error('自动保存设置失败:', error);
+      console.error('自动保存设置失败:', e);
     }
-  },
+  }, 500), // 增加防抖，避免过于频繁的保存
   { deep: true },
 );
 
@@ -188,17 +205,32 @@ watch(
   () => settings.value.enabled,
   (newValue, oldValue) => {
     if (newValue === true && oldValue === false) {
-      // 启用脚本时，重置计数器并启动核心逻辑
       settings.value.executedCount = 0;
       start();
-      toastr.info('自动化脚本已启动。');
     } else if (newValue === false && oldValue === true) {
-      // 禁用脚本时，停止核心逻辑
       stop();
-      toastr.info('自动化脚本已停止。');
     }
   },
 );
+
+// 添加新规则
+const addRule = (type: 'context' | 'subAi') => {
+  const newRule = RegexRuleSchema.parse({});
+  if (type === 'context') {
+    settings.value.contextRegexRules.push(newRule);
+  } else {
+    settings.value.subAiRegexRules.push(newRule);
+  }
+};
+
+// 删除规则
+const removeRule = (type: 'context' | 'subAi', index: number) => {
+  if (type === 'context') {
+    settings.value.contextRegexRules.splice(index, 1);
+  } else {
+    settings.value.subAiRegexRules.splice(index, 1);
+  }
+};
 
 // 获取模型列表
 const getModels = async () => {
@@ -213,7 +245,6 @@ const getModels = async () => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
-    // 根据常见的 API 响应格式，模型列表在 data.data 中
     const fetchedModels = data.data.map((model: any) => model.id);
     models.value = _.union(models.value, fetchedModels);
     toastr.success('模型列表已获取');
@@ -222,23 +253,12 @@ const getModels = async () => {
     toastr.error('获取模型列表失败');
   }
 };
-
-// 发送处理后的副AI回复
-const sendProcessedSubAiReply = () => {
-  if (!processedSubAiReply.value) {
-    toastr.error('没有可发送的内容');
-    return;
-  }
-  // 使用 sendAsUser 函数（假设在 core.ts 中定义）
-  // sendAsUser(processedSubAiReply.value);
-  triggerSlash(`/sendas name={{user}} ${processedSubAiReply.value}`);
-  toastr.success('消息已发送');
-};
 </script>
 
 <style lang="scss" scoped>
 .wide-button {
   width: 100%;
+  margin-top: 10px;
 }
 
 label {
@@ -251,10 +271,56 @@ label {
 hr {
   border: none;
   border-top: 1px solid var(--bg2);
-  margin: 15px 0;
+  margin: 20px 0;
 }
 
 input[type='range'] {
   width: 100%;
+}
+
+.description {
+  font-size: 0.8em;
+  color: #aaa;
+  margin-bottom: 10px;
+}
+
+.rule-item {
+  border: 1px solid var(--bg2);
+  border-radius: 5px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background-color: var(--bg1-trans);
+}
+
+.rule-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.rule-toggle {
+  transform: scale(1.2);
+}
+
+.rule-name {
+  flex-grow: 1;
+}
+
+.rule-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.rule-flags {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.9em;
+}
+
+.rule-flags input {
+  width: 80px;
 }
 </style>
