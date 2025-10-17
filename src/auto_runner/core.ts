@@ -12,6 +12,7 @@ enum AutomationState {
 let state: AutomationState = AutomationState.IDLE;
 let settings: Settings = SettingsSchema.parse({});
 let retryCount = 0;
+let internalExemptionCounter = 0; // 新增的、只在内存中的豁免计数器
 
 // --- 辅助函数 ---
 
@@ -171,9 +172,10 @@ async function getLastCharMessage(): Promise<string> {
  * @returns {Promise<boolean>} 如果成功或无事可做则返回 true，如果用户取消则返回 false
  */
 async function triggerSscAndProcess(): Promise<boolean> {
-  // 检查是否在豁免次数内
-  if (settings.executedCount < settings.exemptionCount) {
-    toastr.info(`当前执行次数 (${settings.executedCount}) 小于豁免次数 (${settings.exemptionCount})，跳过SSC和一键处理。`);
+  // 使用新的内部计数器进行豁免判断
+  if (internalExemptionCounter < settings.exemptionCount) {
+    toastr.info(`豁免计数 (${internalExemptionCounter}) 小于豁免次数 (${settings.exemptionCount})，跳过SSC和一键处理。`);
+    internalExemptionCounter++; // 增加内部豁免计数
     return true; // 返回 true 以继续主流程
   }
 
@@ -391,8 +393,9 @@ async function startAutomation() {
   toastr.success('全自动运行已启动！');
   state = AutomationState.RUNNING;
   retryCount = 0;
+  internalExemptionCounter = 0; // 在每次启动时重置内部豁免计数器
 
-  // 强制重置执行计数器，并等待其保存完成
+  // 强制重置总执行计数器，并等待其保存完成
   settings.executedCount = 0;
   await replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
 
