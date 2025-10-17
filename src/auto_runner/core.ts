@@ -407,6 +407,7 @@ async function runAutomation(isFirstRun = false) {
       // 暂时我们先将它存入一个临时变量，或者考虑用一个 message event
       console.log('处理后的回复:', processedReply);
 
+      toastr.info(`[调试] 准备发送的内容: ${JSON.stringify(processedReply)}`);
       toastr.info('以用户身份发送处理后的消息...');
       // 使用 /send 命令，它默认以用户身份发送
 
