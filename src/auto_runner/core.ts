@@ -101,6 +101,9 @@ async function callSubAI(): Promise<string | null> {
     max_tokens: settings.max_tokens,
   };
 
+  console.log('[AutoRunner] 发送给副AI的完整信息:', body);
+  toastr.info('完整的请求信息已打印到控制台 (F12)。');
+
   try {
     const response = await fetch(`${settings.apiUrl}/chat/completions`, {
       method: 'POST',
