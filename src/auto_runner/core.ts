@@ -386,6 +386,10 @@ function startAutomation() {
   state = AutomationState.RUNNING;
   retryCount = 0;
 
+  // 强制重置执行计数器
+  settings.executedCount = 0;
+  replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
+
   // 绑定事件
   eventOn(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
   eventOn(tavern_events.GENERATION_STOPPED, forceStop);
