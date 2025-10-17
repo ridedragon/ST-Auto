@@ -385,16 +385,16 @@ function forceStop() {
 /**
  * 启动全自动运行
  */
-function startAutomation() {
+async function startAutomation() {
   if (state === AutomationState.RUNNING) return;
 
   toastr.success('全自动运行已启动！');
   state = AutomationState.RUNNING;
   retryCount = 0;
 
-  // 强制重置执行计数器
+  // 强制重置执行计数器，并等待其保存完成
   settings.executedCount = 0;
-  replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
+  await replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
 
   // 绑定事件
   eventOn(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
