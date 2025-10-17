@@ -5,8 +5,10 @@
       <div class="rule-header">
         <input v-model="entry.enabled" type="checkbox" class="rule-toggle" />
         <input v-model="entry.name" type="text" class="text_pole rule-name" placeholder="条目名称" />
-        <button class="menu_button" @click="toggleEdit(entry)">{{ entry.editing ? '完成' : '编辑' }}</button>
-        <button class="menu_button" @click="removeEntry(index)">删除</button>
+        <div class="buttons">
+          <button class="menu_button" @click="toggleEdit(entry)">{{ entry.editing ? '完成' : '编辑' }}</button>
+          <button class="menu_button" @click="removeEntry(index)">删除</button>
+        </div>
       </div>
       <div v-if="entry.editing" class="rule-body">
         <textarea v-model="entry.content" class="text_pole" placeholder="提示词内容..."></textarea>
@@ -93,6 +95,21 @@ function toggleEdit(entry: Entry) {
 <style lang="scss" scoped>
 /* The styles are now inherited from the parent component (auto_runner/app.vue) */
 /* We can add specific adjustments here if needed */
+.rule-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rule-name {
+  flex-grow: 1;
+}
+
+.buttons {
+  display: flex;
+  gap: 5px;
+}
+
 .rule-body select {
   margin-top: 5px;
 }
