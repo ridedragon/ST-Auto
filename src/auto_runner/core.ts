@@ -407,9 +407,7 @@ async function runAutomation(isFirstRun = false) {
       // 暂时我们先将它存入一个临时变量，或者考虑用一个 message event
       console.log('处理后的回复:', processedReply);
 
-      toastr.info(`[调试] 准备发送的内容: ${JSON.stringify(processedReply)}`);
       toastr.info('以用户身份发送处理后的消息...');
-      // 使用 /send 命令，它默认以用户身份发送
 
       // 尝试将回复作为JSON解析，以去除可能存在的多余引号层级
       let finalReply = processedReply;
@@ -422,10 +420,17 @@ async function runAutomation(isFirstRun = false) {
         // 解析失败，说明它不是一个JSON字符串，保持原样。
       }
 
-      // 对最终的、干净的字符串进行转义，以安全地插入到 /send 命令中
-      const escapedReply = finalReply.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-      await triggerSlash(`/send "${escapedReply}"`);
-      await triggerSlash('/trigger await=true'); // 触发主AI生成
+      // 使用 addOneMessage API 直接添加消息，绕过 /send 命令的解析问题
+      const messageObject = {
+        is_user: true,
+        name: SillyTavern.name1, // 使用 ST 上下文中的用户名
+        mes: finalReply,
+      };
+      await SillyTavern.addOneMessage(messageObject, {
+        do_not_generate: true, // 确保 addOneMessage 本身不触发生成
+      });
+
+      await triggerSlash('/trigger await=true'); // 手动触发主AI生成
     }
 
     await incrementExecutedCount();
