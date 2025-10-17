@@ -1,16 +1,22 @@
 <template>
   <div class="flex-container flexFlowColumn">
     <div><strong>提示词设置</strong> (总词符数: {{ totalTokens }})</div>
-    <div v-for="(entry, index) in entries" :key="index" class="rule-item">
+    <div
+      v-for="(entry, index) in entries"
+      :key="entry.id"
+      class="rule-item"
+      draggable="true"
+      @dragstart="dragStart(index)"
+      @dragover.prevent
+      @drop="drop(index)"
+    >
       <div class="rule-header">
-        <input v-model="entry.enabled" type="checkbox" class="rule-toggle" />
-        <input v-model="entry.name" type="text" class="text_pole rule-name" placeholder="条目名称" />
+        <span class="drag-handle">☰</span>
+        <input v-model="entry.enabled" type="checkbox" class="rule-toggle" @change="update" />
+        <input v-model="entry.name" type="text" class="text_pole rule-name" placeholder="条目名称" @input="update" />
         <div class="buttons">
           <button class="menu_button icon-button" @click="toggleEdit(entry)">
             <i :class="['fa-solid', entry.editing ? 'fa-folder-open' : 'fa-folder']"></i>
-          </button>
-          <button class="menu_button icon-button" @click="saveEntries">
-            <i class="fa-solid fa-save"></i>
           </button>
           <button class="menu_button icon-button" @click="removeEntry(index)">
             <i class="fa-solid fa-trash"></i>
@@ -18,8 +24,8 @@
         </div>
       </div>
       <div v-if="entry.editing" class="rule-body">
-        <textarea v-model="entry.content" class="text_pole" placeholder="提示词内容..."></textarea>
-        <select v-model="entry.role" class="text_pole">
+        <textarea v-model="entry.content" class="text_pole" placeholder="提示词内容..." @input="update"></textarea>
+        <select v-model="entry.role" class="text_pole" @change="update">
           <option>user</option>
           <option>system</option>
           <option>assistant</option>
@@ -31,69 +37,64 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
-import _ from 'lodash';
-import { z } from 'zod';
+import { computed } from 'vue';
+import { PromptEntrySchema, type PromptEntry } from './types';
 
-const EntrySchema = z.object({
-  name: z.string(),
-  content: z.string(),
-  enabled: z.boolean(),
-  editing: z.boolean(),
-  role: z.enum(['user', 'system', 'assistant']),
-});
+const props = defineProps<{
+  entries: PromptEntry[];
+}>();
 
-const EntriesSchema = z.array(EntrySchema);
-
-type Entry = z.infer<typeof EntrySchema>;
-
-const entries = ref<Entry[]>([]);
-
-const SCRIPT_ID = 'auto_runner_prompts';
-
-async function saveEntries() {
-  try {
-    const validatedEntries = EntriesSchema.parse(entries.value);
-    await replaceVariables(_.cloneDeep(validatedEntries), { type: 'script', script_id: SCRIPT_ID });
-    toastr.success('提示词已保存');
-  } catch (e: any) {
-    console.error('保存提示词条目失败:', e);
-    toastr.error('保存提示词失败');
-  }
-}
-
-onMounted(() => {
-  try {
-    const savedEntries = getVariables({ type: 'script', script_id: SCRIPT_ID }) || [];
-    entries.value = EntriesSchema.parse(savedEntries);
-  } catch (error) {
-    console.error('加载提示词条目失败:', error);
-    entries.value = [];
-  }
-});
+const emit = defineEmits(['update:entries']);
 
 const totalTokens = computed(() => {
-  return entries.value.reduce((acc, entry) => {
+  return props.entries.reduce((acc, entry) => {
     return acc + (entry.enabled ? entry.content.length : 0);
   }, 0);
 });
 
+function update() {
+  emit('update:entries', props.entries);
+}
+
 function addEntry() {
-  entries.value.push({
+  const newEntry = PromptEntrySchema.parse({
     name: '新条目',
     content: '',
     enabled: true,
     editing: true,
     role: 'user',
   });
+  const newEntries = [...props.entries, newEntry];
+  emit('update:entries', newEntries);
 }
 
 function removeEntry(index: number) {
-  entries.value.splice(index, 1);
+  const newEntries = [...props.entries];
+  newEntries.splice(index, 1);
+  emit('update:entries', newEntries);
 }
 
-function toggleEdit(entry: Entry) {
+function toggleEdit(entry: PromptEntry) {
   entry.editing = !entry.editing;
+  update();
+}
+
+// Drag and Drop
+let draggedIndex = -1;
+
+function dragStart(index: number) {
+  draggedIndex = index;
+}
+
+function drop(targetIndex: number) {
+  if (draggedIndex === -1 || draggedIndex === targetIndex) {
+    return;
+  }
+  const newEntries = [...props.entries];
+  const [draggedItem] = newEntries.splice(draggedIndex, 1);
+  newEntries.splice(targetIndex, 0, draggedItem);
+  draggedIndex = -1;
+  emit('update:entries', newEntries);
 }
 </script>
 
@@ -104,6 +105,10 @@ function toggleEdit(entry: Entry) {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.drag-handle {
+  cursor: grab;
 }
 
 .rule-name {

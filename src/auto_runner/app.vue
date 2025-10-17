@@ -15,7 +15,7 @@
 
       <hr />
 
-      <PromptEditor />
+      <PromptEditor :entries="settings.promptEntries" @update:entries="updatePromptEntries" />
 
       <hr />
 
@@ -189,6 +189,10 @@ watch(
   }, 500), // 增加防抖，避免过于频繁的保存
   { deep: true },
 );
+
+const updatePromptEntries = (newEntries: any) => {
+  settings.value.promptEntries = newEntries;
+};
 
 // 监视脚本启用/禁用状态
 watch(

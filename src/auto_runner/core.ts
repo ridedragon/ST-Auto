@@ -108,20 +108,6 @@ async function incrementExecutedCount() {
 }
 
 /**
- * 获取并验证提示词条目
- */
-async function getPrompts(): Promise<PromptEntry[]> {
-  try {
-    const savedPrompts = getVariables({ type: 'script', script_id: 'auto_runner_prompts' }) || [];
-    return PromptsSchema.parse(savedPrompts);
-  } catch (error) {
-    console.error('[AutoRunner] 加载提示词失败:', error);
-    toastr.error('加载提示词失败，将使用空提示词。');
-    return [];
-  }
-}
-
-/**
  * 调用副AI
  */
 async function callSubAI(): Promise<string | null> {
@@ -133,9 +119,8 @@ async function callSubAI(): Promise<string | null> {
     return null;
   }
 
-  // 获取提示词
-  const promptEntries = await getPrompts();
-  const promptMessages = promptEntries
+  // 从设置中获取提示词
+  const promptMessages = settings.promptEntries
     .filter(p => p.enabled && p.content)
     .map(p => ({ role: p.role, content: p.content }));
 

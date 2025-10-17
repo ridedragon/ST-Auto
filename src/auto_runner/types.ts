@@ -11,8 +11,20 @@ export const RegexRuleSchema = z.object({
 
 export type RegexRule = z.infer<typeof RegexRuleSchema>;
 
+export const PromptEntrySchema = z.object({
+  id: z.string().default(() => `prompt_${Date.now()}_${Math.random()}`),
+  name: z.string(),
+  content: z.string(),
+  enabled: z.boolean(),
+  editing: z.boolean(),
+  role: z.enum(['user', 'system', 'assistant']),
+});
+
+export type PromptEntry = z.infer<typeof PromptEntrySchema>;
+
 export const SettingsSchema = z.object({
   enabled: z.boolean().default(false),
+  promptEntries: z.array(PromptEntrySchema).default([]),
   apiUrl: z.preprocess(val => val ?? '', z.string()),
   apiKey: z.preprocess(val => val ?? '', z.string()),
   model: z.preprocess(val => val ?? '', z.string()),
