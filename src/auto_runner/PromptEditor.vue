@@ -125,4 +125,9 @@ function toggleEdit(entry: Entry) {
 .rule-body select {
   margin-top: 5px;
 }
+
+.wide-button {
+  width: 100%;
+  margin-top: 10px;
+}
 </style>
