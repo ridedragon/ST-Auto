@@ -6,8 +6,15 @@
         <input v-model="entry.enabled" type="checkbox" class="rule-toggle" />
         <input v-model="entry.name" type="text" class="text_pole rule-name" placeholder="条目名称" />
         <div class="buttons">
-          <button class="menu_button" @click="toggleEdit(entry)">{{ entry.editing ? '完成' : '编辑' }}</button>
-          <button class="menu_button" @click="removeEntry(index)">删除</button>
+          <button class="menu_button" @click="toggleEdit(entry)">
+            <i :class="['fa-solid', entry.editing ? 'fa-folder-open' : 'fa-folder']"></i>
+          </button>
+          <button class="menu_button" @click="saveEntries">
+            <i class="fa-solid fa-save"></i>
+          </button>
+          <button class="menu_button" @click="removeEntry(index)">
+            <i class="fa-solid fa-trash"></i>
+          </button>
         </div>
       </div>
       <div v-if="entry.editing" class="rule-body">
@@ -44,6 +51,17 @@ const entries = ref<Entry[]>([]);
 
 const SCRIPT_ID = 'auto_runner_prompts';
 
+async function saveEntries() {
+  try {
+    const validatedEntries = EntriesSchema.parse(entries.value);
+    await replaceVariables(_.cloneDeep(validatedEntries), { type: 'script', script_id: SCRIPT_ID });
+    toastr.success('提示词已保存');
+  } catch (e: any) {
+    console.error('保存提示词条目失败:', e);
+    toastr.error('保存提示词失败');
+  }
+}
+
 onMounted(() => {
   try {
     const savedEntries = getVariables({ type: 'script', script_id: SCRIPT_ID }) || [];
@@ -53,19 +71,6 @@ onMounted(() => {
     entries.value = [];
   }
 });
-
-watch(
-  entries,
-  _.debounce(async (newEntries) => {
-    try {
-      const validatedEntries = EntriesSchema.parse(newEntries);
-      await replaceVariables(_.cloneDeep(validatedEntries), { type: 'script', script_id: SCRIPT_ID });
-    } catch (e: any) {
-      console.error('自动保存提示词条目失败:', e);
-    }
-  }, 500),
-  { deep: true }
-);
 
 const totalTokens = computed(() => {
   return entries.value.reduce((acc, entry) => {
