@@ -6,13 +6,13 @@
         <input v-model="entry.enabled" type="checkbox" class="rule-toggle" />
         <input v-model="entry.name" type="text" class="text_pole rule-name" placeholder="条目名称" />
         <div class="buttons">
-          <button class="menu_button" @click="toggleEdit(entry)">
+          <button class="menu_button icon-button" @click="toggleEdit(entry)">
             <i :class="['fa-solid', entry.editing ? 'fa-folder-open' : 'fa-folder']"></i>
           </button>
-          <button class="menu_button" @click="saveEntries">
+          <button class="menu_button icon-button" @click="saveEntries">
             <i class="fa-solid fa-save"></i>
           </button>
-          <button class="menu_button" @click="removeEntry(index)">
+          <button class="menu_button icon-button" @click="removeEntry(index)">
             <i class="fa-solid fa-trash"></i>
           </button>
         </div>
@@ -26,7 +26,7 @@
         </select>
       </div>
     </div>
-    <button class="menu_button wide-button" @click="addEntry">添加提示词条目</button>
+    <button class="menu_button" @click="addEntry">添加提示词条目</button>
   </div>
 </template>
 
@@ -108,11 +108,18 @@ function toggleEdit(entry: Entry) {
 
 .rule-name {
   flex-grow: 1;
+  min-width: 50px; /* Prevent it from becoming too small */
 }
 
 .buttons {
   display: flex;
+  flex-shrink: 0; /* Prevent buttons from shrinking */
   gap: 5px;
+}
+
+.icon-button {
+  padding: 4px 8px; /* Make buttons smaller */
+  line-height: 1;
 }
 
 .rule-body select {
