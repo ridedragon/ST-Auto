@@ -7,7 +7,6 @@ export const RegexRuleSchema = z.object({
   find: z.string().default(''),
   replace: z.string().default(''),
   enabled: z.boolean().default(true),
-  flags: z.string().default('g'),
 });
 
 export type RegexRule = z.infer<typeof RegexRuleSchema>;
@@ -27,10 +26,10 @@ export const SettingsSchema = z.object({
   
   // 新的正则表达式规则数组
   contextRegexRules: z.array(RegexRuleSchema).default([
-    { id: 'default_1', name: '移除 StatusPlaceHolderImpl', find: '<StatusPlaceHolderImpl\\/>', replace: '', enabled: true, flags: 'g' },
-    { id: 'default_2', name: '移除 HTML 注释', find: '\\s*<!--[\\s\\S]*?-->\\s*', replace: '', enabled: true, flags: 'g' },
-    { id: 'default_3', name: '移除特定标签和内容', find: '(<disclaimer>.*?<\\/disclaimer>)|(<guifan>.*?<\\/guifan>)|```start|<content>|<\\/content>|```end|<done>|`<done>`|(<!--\\s*consider\\s*:(.*?)\\s*-->)|(.*?<\\/think(ing)?>(\\n)?)|(<think(ing)?>[\\s\\S]*?<\\/think(ing)?>(\\n)?)', replace: '', enabled: true, flags: 'gs' },
-    { id: 'default_4', name: '移除 UpdateVariable 标签', find: '<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>', replace: '', enabled: true, flags: 'gm' },
+    { id: 'default_1', name: '移除 StatusPlaceHolderImpl', find: '/<StatusPlaceHolderImpl\\/>/g', replace: '', enabled: true },
+    { id: 'default_2', name: '移除 HTML 注释', find: '/\\s*<!--[\\s\\S]*?-->\\s*/g', replace: '', enabled: true },
+    { id: 'default_3', name: '移除特定标签和内容', find: '/(<disclaimer>.*?<\\/disclaimer>)|(<guifan>.*?<\\/guifan>)|```start|<content>|<\\/content>|```end|<done>|`<done>`|(<!--\\s*consider\\s*:(.*?)\\s*-->)|(.*?<\\/think(ing)?>(\\n)?)|(<think(ing)?>[\\s\\S]*?<\\/think(ing)?>(\\n)?)/gs', replace: '', enabled: true },
+    { id: 'default_4', name: '移除 UpdateVariable 标签', find: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm', replace: '', enabled: true },
   ]),
   subAiRegexRules: z.array(RegexRuleSchema).default([]),
 

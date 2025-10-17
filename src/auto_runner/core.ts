@@ -27,7 +27,20 @@ function applyRegexRules(text: string, rules: readonly RegexRule[]): string {
   for (const rule of rules) {
     if (rule.enabled && rule.find) {
       try {
-        const regex = new RegExp(rule.find, rule.flags);
+        // 尝试解析 /pattern/flags 格式
+        const match = rule.find.match(/^\/(.*)\/([gimsuy]*)$/s);
+        let regex: RegExp;
+
+        if (match) {
+          // 输入是 /.../flags 格式
+          const pattern = match[1];
+          const flags = match[2];
+          regex = new RegExp(pattern, flags);
+        } else {
+          // 输入是普通字符串，默认使用 'g' 标志
+          regex = new RegExp(rule.find, 'g');
+        }
+
         processedText = processedText.replace(regex, rule.replace);
       } catch (e) {
         console.error(`正则表达式规则 "${rule.name || rule.id}" 无效:`, e);

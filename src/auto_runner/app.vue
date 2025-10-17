@@ -33,12 +33,8 @@
             <button class="menu_button" @click="removeRule('context', index)">删除</button>
           </div>
           <div class="rule-body">
-            <textarea v-model="rule.find" class="text_pole" placeholder="查找 (正则表达式)"></textarea>
+            <textarea v-model="rule.find" class="text_pole" placeholder="查找 (支持 /.../flags 格式)"></textarea>
             <textarea v-model="rule.replace" class="text_pole" placeholder="替换为 (留空则为删除)"></textarea>
-            <div class="rule-flags">
-              <label>标志:</label>
-              <input v-model="rule.flags" type="text" class="text_pole" placeholder="如: gi" />
-            </div>
           </div>
         </div>
         <button class="menu_button wide-button" @click="addRule('context')">添加上下文规则</button>
@@ -57,12 +53,8 @@
             <button class="menu_button" @click="removeRule('subAi', index)">删除</button>
           </div>
           <div class="rule-body">
-            <textarea v-model="rule.find" class="text_pole" placeholder="查找 (正则表达式)"></textarea>
+            <textarea v-model="rule.find" class="text_pole" placeholder="查找 (支持 /.../flags 格式)"></textarea>
             <textarea v-model="rule.replace" class="text_pole" placeholder="替换为 (留空则为删除)"></textarea>
-            <div class="rule-flags">
-              <label>标志:</label>
-              <input v-model="rule.flags" type="text" class="text_pole" placeholder="如: gi" />
-            </div>
           </div>
         </div>
         <button class="menu_button wide-button" @click="addRule('subAi')">添加副AI输出规则</button>
@@ -313,14 +305,4 @@ input[type='range'] {
   gap: 5px;
 }
 
-.rule-flags {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.9em;
-}
-
-.rule-flags input {
-  width: 80px;
-}
 </style>
