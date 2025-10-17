@@ -154,7 +154,7 @@ import { ref, onMounted, watch } from 'vue';
 import _ from 'lodash';
 import { SettingsSchema, RegexRuleSchema, type Settings } from './types';
 import { start, stop } from './core';
-import PromptEditor from '@/prompt_editor/app.vue';
+import PromptEditor from './PromptEditor.vue';
 
 const settings = ref<Settings>(SettingsSchema.parse({}));
 const models = ref<string[]>([]);
