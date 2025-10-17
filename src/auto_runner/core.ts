@@ -408,29 +408,11 @@ async function runAutomation(isFirstRun = false) {
       console.log('处理后的回复:', processedReply);
 
       toastr.info('以用户身份发送处理后的消息...');
+      // 使用 /send 命令，它默认以用户身份发送
 
-      // 尝试将回复作为JSON解析，以去除可能存在的多余引号层级
-      let finalReply = processedReply;
-      try {
-        const parsed = JSON.parse(finalReply);
-        if (typeof parsed === 'string') {
-          finalReply = parsed;
-        }
-      } catch (e) {
-        // 解析失败，说明它不是一个JSON字符串，保持原样。
-      }
-
-      // 使用 addOneMessage API 直接添加消息，绕过 /send 命令的解析问题
-      const messageObject = {
-        is_user: true,
-        name: SillyTavern.name1, // 使用 ST 上下文中的用户名
-        mes: finalReply,
-      };
-      await SillyTavern.addOneMessage(messageObject, {
-        do_not_generate: true, // 确保 addOneMessage 本身不触发生成
-      });
-
-      await triggerSlash('/trigger await=true'); // 手动触发主AI生成
+      // 根据用户指示，直接发送处理后的消息，不添加任何引号或转义
+      await triggerSlash(`/send ${processedReply}`);
+      await triggerSlash('/trigger await=true'); // 触发主AI生成
     }
 
     await incrementExecutedCount();
