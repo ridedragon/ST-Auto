@@ -13,12 +13,12 @@ export const SettingsSchema = z.object({
   totalReplies: z.coerce.number().min(1).default(10),
   executedCount: z.coerce.number().min(0).default(0),
   regex: z.string().default(
-    String.raw`<StatusPlaceHolderImpl\/>
-\s*<!--[\s\S]*?-->\s*
+    String.raw`<StatusPlaceHolderImpl\/>|
+\s*<!--[\s\S]*?-->|
 (<disclaimer>.*?<\/disclaimer>)|(<guifan>.*?<\/guifan>)|
 \`\`\`start|<content>|<\/content>|\`\`\`end|<done>|\`<done>\`|
-(<!--\s*consider\s*:\s*(.*?)\s*-->)|(.*?<\/think(ing)?>(\n)?)|(<think(ing)?>[\s\S]*?<\/think(ing)?>(\n)?)
-/<UpdateVariable>[\s\S]*?</UpdateVariable>/gm`,
+(<!--\s*consider\s*:\s*(.*?)\s*-->)|(.*?<\/think(ing)?>(\n)?)|(<think(ing)?>[\s\S]*?<\/think(ing)?>(\n)?)|
+<UpdateVariable>[\s\S]*?</UpdateVariable>`,
   ),
   subAiRegex: z.preprocess(val => val || String.raw`^.*?<\/think(ing)?>\s*`, z.string()),
   subAiRegexReplacement: z.preprocess(val => val ?? '', z.string()),
