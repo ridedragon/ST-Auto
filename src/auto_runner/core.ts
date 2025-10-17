@@ -216,8 +216,6 @@ async function triggerSscAndProcess(): Promise<boolean> {
       api.manualOptimize((content: string | null) => resolve(content));
     });
 
-    let sscPerformed = false;
-
     if (!sourceContent) {
       toastr.info('在最后一条角色消息中未找到可优化的内容，跳过SSC优化。');
     } else {
@@ -286,13 +284,13 @@ async function triggerSscAndProcess(): Promise<boolean> {
           resolve();
         });
       });
-      sscPerformed = true;
     }
 
-    if (sscPerformed) {
-      toastr.info('SSC优化完成，等待2秒渲染...');
-      await delay(2000);
-    }
+    // 关键修复：恢复无条件延迟。
+    // 实践表明，无论SSC是否执行，都需要一个延迟来确保酒馆状态稳定，
+    // 以便“一键处理”按钮能够被正确触发。
+    toastr.info('等待2秒以确保系统稳定...');
+    await delay(2000);
 
     // 执行“一键处理”
     toastr.info('执行“一键处理”...');
