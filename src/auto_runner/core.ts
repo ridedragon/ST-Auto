@@ -174,7 +174,9 @@ async function getLastCharMessage(): Promise<string> {
 async function triggerSscAndProcess(): Promise<boolean> {
   // 使用新的内部计数器进行豁免判断
   if (internalExemptionCounter < settings.exemptionCount) {
-    toastr.info(`豁免计数 (${internalExemptionCounter}) 小于豁免次数 (${settings.exemptionCount})，跳过SSC和一键处理。`);
+    toastr.info(
+      `豁免计数 (${internalExemptionCounter}) 小于豁免次数 (${settings.exemptionCount})，跳过SSC和一键处理。`,
+    );
     internalExemptionCounter++; // 增加内部豁免计数
     return true; // 返回 true 以继续主流程
   }
@@ -351,7 +353,7 @@ async function runAutomation(isFirstRun = false) {
       // 注意：这里无法直接更新Vue组件的ref，需要通过事件或其他方式通知UI
       // 暂时我们先将它存入一个临时变量，或者考虑用一个 message event
       console.log('处理后的回复:', processedReply);
-      
+
       toastr.info('以用户身份发送处理后的消息...');
       // 使用 /send 命令，它默认以用户身份发送
       await triggerSlash(`/send "${processedReply.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`);

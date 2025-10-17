@@ -39,7 +39,11 @@
 
       <div class="flex-container flexFlowColumn">
         <div><strong>处理后的副AI输出</strong></div>
-        <textarea v-model="processedSubAiReply" class="text_pole" placeholder="这里是经过正则处理后的副AI输出..."></textarea>
+        <textarea
+          v-model="processedSubAiReply"
+          class="text_pole"
+          placeholder="这里是经过正则处理后的副AI输出..."
+        ></textarea>
         <div class="flex-container">
           <button class="menu_button wide-button" @click="sendProcessedSubAiReply">发送</button>
         </div>
