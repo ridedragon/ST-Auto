@@ -13,7 +13,6 @@ export type RegexRule = z.infer<typeof RegexRuleSchema>;
 
 export const SettingsSchema = z.object({
   enabled: z.boolean().default(false),
-  prompt: z.preprocess(val => val ?? '', z.string()),
   apiUrl: z.preprocess(val => val ?? '', z.string()),
   apiKey: z.preprocess(val => val ?? '', z.string()),
   model: z.preprocess(val => val ?? '', z.string()),

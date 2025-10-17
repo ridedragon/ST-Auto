@@ -15,10 +15,7 @@
 
       <hr />
 
-      <div class="flex-container flexFlowColumn">
-        <div><strong>提示词设置</strong></div>
-        <textarea v-model="settings.prompt" class="text_pole" placeholder="输入给副AI的指令..."></textarea>
-      </div>
+      <PromptEditor />
 
       <hr />
 
@@ -157,6 +154,7 @@ import { ref, onMounted, watch } from 'vue';
 import _ from 'lodash';
 import { SettingsSchema, RegexRuleSchema, type Settings } from './types';
 import { start, stop } from './core';
+import PromptEditor from '@/prompt_editor/app.vue';
 
 const settings = ref<Settings>(SettingsSchema.parse({}));
 const models = ref<string[]>([]);

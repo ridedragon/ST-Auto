@@ -53,21 +53,48 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
+import _ from 'lodash';
+import { z } from 'zod';
 
-interface Entry {
-  name: string;
-  content: string;
-  enabled: boolean;
-  editing: boolean;
-  role: 'user' | 'system' | 'assistant';
-}
+const EntrySchema = z.object({
+  name: z.string(),
+  content: z.string(),
+  enabled: z.boolean(),
+  editing: z.boolean(),
+  role: z.enum(['user', 'system', 'assistant']),
+});
 
-const entries = ref<Entry[]>([
-  { name: '需知', content: '', enabled: true, editing: false, role: 'system' },
-  { name: '前置设置开始', content: '', enabled: true, editing: false, role: 'system' },
-  { name: '人称设置 (自改)', content: '', enabled: true, editing: false, role: 'system' },
-]);
+const EntriesSchema = z.array(EntrySchema);
+
+type Entry = z.infer<typeof EntrySchema>;
+
+const entries = ref<Entry[]>([]);
+
+const SCRIPT_ID = 'auto_runner_prompts';
+
+onMounted(() => {
+  try {
+    const savedEntries = getVariables({ type: 'script', script_id: SCRIPT_ID }) || [];
+    entries.value = EntriesSchema.parse(savedEntries);
+  } catch (error) {
+    console.error('加载提示词条目失败:', error);
+    entries.value = [];
+  }
+});
+
+watch(
+  entries,
+  _.debounce(async (newEntries) => {
+    try {
+      const validatedEntries = EntriesSchema.parse(newEntries);
+      await replaceVariables(_.cloneDeep(validatedEntries), { type: 'script', script_id: SCRIPT_ID });
+    } catch (e: any) {
+      console.error('自动保存提示词条目失败:', e);
+    }
+  }, 500),
+  { deep: true }
+);
 
 const totalTokens = computed(() => {
   return entries.value.reduce((acc, entry) => {

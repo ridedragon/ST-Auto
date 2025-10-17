@@ -1,5 +1,18 @@
 import _ from 'lodash';
+import { z } from 'zod';
 import { SettingsSchema, type Settings, type RegexRule } from './types';
+
+// --- 类型定义 ---
+const PromptEntrySchema = z.object({
+  name: z.string(),
+  content: z.string(),
+  enabled: z.boolean(),
+  editing: z.boolean(),
+  role: z.enum(['user', 'system', 'assistant']),
+});
+
+const PromptsSchema = z.array(PromptEntrySchema);
+type PromptEntry = z.infer<typeof PromptEntrySchema>;
 
 // --- 状态管理 ---
 enum AutomationState {
@@ -95,6 +108,20 @@ async function incrementExecutedCount() {
 }
 
 /**
+ * 获取并验证提示词条目
+ */
+async function getPrompts(): Promise<PromptEntry[]> {
+  try {
+    const savedPrompts = getVariables({ type: 'script', script_id: 'auto_runner_prompts' }) || [];
+    return PromptsSchema.parse(savedPrompts);
+  } catch (error) {
+    console.error('[AutoRunner] 加载提示词失败:', error);
+    toastr.error('加载提示词失败，将使用空提示词。');
+    return [];
+  }
+}
+
+/**
  * 调用副AI
  */
 async function callSubAI(): Promise<string | null> {
@@ -106,21 +133,27 @@ async function callSubAI(): Promise<string | null> {
     return null;
   }
 
+  // 获取提示词
+  const promptEntries = await getPrompts();
+  const promptMessages = promptEntries
+    .filter(p => p.enabled && p.content)
+    .map(p => ({ role: p.role, content: p.content }));
+
   // 过滤掉主AI的预设提示词
   const messagesForSubAI = allMessages.filter(msg => msg.role !== 'system');
 
   // 将聊天记录映射为 API 格式，并对每条消息应用上下文正则
-  const processedMessages = messagesForSubAI.map(msg => {
+  const processedChatMessages = messagesForSubAI.map(msg => {
     const content = applyRegexRules(msg.message, settings.contextRegexRules);
     return { role: msg.role, content };
   });
 
-  // 添加最后的、作为指令的 user 消息
-  processedMessages.push({ role: 'user', content: settings.prompt });
+  // 合并提示词和聊天记录
+  const finalMessages = [...promptMessages, ...processedChatMessages];
 
   const body = {
     model: settings.model,
-    messages: processedMessages,
+    messages: finalMessages,
     temperature: settings.temperature,
     top_p: settings.top_p,
     top_k: settings.top_k,
