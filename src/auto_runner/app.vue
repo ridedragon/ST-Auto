@@ -165,7 +165,22 @@ onMounted(async () => {
     const savedSettings = getVariables({ type: 'script', script_id: getScriptId() }) || {};
     const defaultSettings = SettingsSchema.parse({});
     const mergedSettings = _.merge(defaultSettings, savedSettings);
-    settings.value = SettingsSchema.parse(mergedSettings);
+    const parsedSettings = SettingsSchema.parse(mergedSettings);
+
+    // 确保聊天记录占位符存在
+    if (!parsedSettings.promptEntries.some(p => p.is_chat_history)) {
+      parsedSettings.promptEntries.push({
+        id: 'chat_history_placeholder',
+        name: '聊天记录',
+        content: '',
+        enabled: true,
+        editing: false,
+        role: 'system',
+        is_chat_history: true,
+      });
+    }
+
+    settings.value = parsedSettings;
 
     if (settings.value.model) {
       models.value.push(settings.value.model);

@@ -119,22 +119,32 @@ async function callSubAI(): Promise<string | null> {
     return null;
   }
 
-  // 从设置中获取提示词
-  const promptMessages = settings.promptEntries
-    .filter(p => p.enabled && p.content)
+  // 准备提示词和聊天记录
+  const promptEntries = settings.promptEntries;
+  const chatHistoryIndex = promptEntries.findIndex(p => p.is_chat_history);
+
+  const promptMessages = promptEntries
+    .filter(p => !p.is_chat_history && p.enabled && p.content)
     .map(p => ({ role: p.role, content: p.content }));
 
-  // 过滤掉主AI的预设提示词
   const messagesForSubAI = allMessages.filter(msg => msg.role !== 'system');
-
-  // 将聊天记录映射为 API 格式，并对每条消息应用上下文正则
   const processedChatMessages = messagesForSubAI.map(msg => {
     const content = applyRegexRules(msg.message, settings.contextRegexRules);
     return { role: msg.role, content };
   });
 
-  // 合并提示词和聊天记录
-  const finalMessages = [...promptMessages, ...processedChatMessages];
+  let finalMessages;
+  if (chatHistoryIndex !== -1) {
+    // 在占位符位置插入聊天记录
+    finalMessages = [
+      ...promptMessages.slice(0, chatHistoryIndex),
+      ...processedChatMessages,
+      ...promptMessages.slice(chatHistoryIndex),
+    ];
+  } else {
+    // 如果没有占位符，则将聊天记录放在最后
+    finalMessages = [...promptMessages, ...processedChatMessages];
+  }
 
   const body = {
     model: settings.model,

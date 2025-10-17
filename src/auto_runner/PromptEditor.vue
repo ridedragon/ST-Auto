@@ -4,26 +4,26 @@
     <div
       v-for="(entry, index) in entries"
       :key="entry.id"
-      class="rule-item"
-      draggable="true"
+      :class="['rule-item', { 'chat-history-placeholder': entry.is_chat_history }]"
+      :draggable="!entry.is_chat_history"
       @dragstart="dragStart(index)"
       @dragover.prevent
       @drop="drop(index)"
     >
       <div class="rule-header">
         <span class="drag-handle">☰</span>
-        <input v-model="entry.enabled" type="checkbox" class="rule-toggle" @change="update" />
-        <input v-model="entry.name" type="text" class="text_pole rule-name" placeholder="条目名称" @input="update" />
+        <input v-if="!entry.is_chat_history" v-model="entry.enabled" type="checkbox" class="rule-toggle" @change="update" />
+        <input v-model="entry.name" type="text" class="text_pole rule-name" :readonly="entry.is_chat_history" placeholder="条目名称" @input="update" />
         <div class="buttons">
-          <button class="menu_button icon-button" @click="toggleEdit(entry)">
+          <button v-if="!entry.is_chat_history" class="menu_button icon-button" @click="toggleEdit(entry)">
             <i :class="['fa-solid', entry.editing ? 'fa-folder-open' : 'fa-folder']"></i>
           </button>
-          <button class="menu_button icon-button" @click="removeEntry(index)">
+          <button v-if="!entry.is_chat_history" class="menu_button icon-button" @click="removeEntry(index)">
             <i class="fa-solid fa-trash"></i>
           </button>
         </div>
       </div>
-      <div v-if="entry.editing" class="rule-body">
+      <div v-if="entry.editing && !entry.is_chat_history" class="rule-body">
         <textarea v-model="entry.content" class="text_pole" placeholder="提示词内容..." @input="update"></textarea>
         <select v-model="entry.role" class="text_pole" @change="update">
           <option>user</option>
@@ -134,5 +134,10 @@ function drop(targetIndex: number) {
 .wide-button {
   width: 100%;
   margin-top: 10px;
+}
+
+.chat-history-placeholder {
+  background-color: var(--bg3) !important;
+  border-style: dashed !important;
 }
 </style>

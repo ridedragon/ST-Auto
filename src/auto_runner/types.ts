@@ -18,6 +18,7 @@ export const PromptEntrySchema = z.object({
   enabled: z.boolean(),
   editing: z.boolean(),
   role: z.enum(['user', 'system', 'assistant']),
+  is_chat_history: z.boolean().optional().default(false),
 });
 
 export type PromptEntry = z.infer<typeof PromptEntrySchema>;
