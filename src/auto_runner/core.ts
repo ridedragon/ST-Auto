@@ -409,7 +409,21 @@ async function runAutomation(isFirstRun = false) {
 
       toastr.info('以用户身份发送处理后的消息...');
       // 使用 /send 命令，它默认以用户身份发送
-      await triggerSlash(`/send "${processedReply.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`);
+
+      // 尝试将回复作为JSON解析，以去除可能存在的多余引号层级
+      let finalReply = processedReply;
+      try {
+        const parsed = JSON.parse(finalReply);
+        if (typeof parsed === 'string') {
+          finalReply = parsed;
+        }
+      } catch (e) {
+        // 解析失败，说明它不是一个JSON字符串，保持原样。
+      }
+
+      // 对最终的、干净的字符串进行转义，以安全地插入到 /send 命令中
+      const escapedReply = finalReply.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      await triggerSlash(`/send "${escapedReply}"`);
       await triggerSlash('/trigger await=true'); // 触发主AI生成
     }
 
