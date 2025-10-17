@@ -390,6 +390,9 @@ function forceStop() {
 async function startAutomation() {
   if (state === AutomationState.RUNNING) return;
 
+  // 根据用户建议，在执行前添加1秒延迟，以等待其他程序或UI更新完成
+  await delay(1000);
+
   toastr.success('全自动运行已启动！');
   state = AutomationState.RUNNING;
   retryCount = 0;
