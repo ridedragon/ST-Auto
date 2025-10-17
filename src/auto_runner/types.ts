@@ -23,6 +23,7 @@ export const SettingsSchema = z.object({
   subAiRegex: z.preprocess(val => val || String.raw`^.*?<\/think(ing)?>\s*`, z.string()),
   subAiRegexReplacement: z.preprocess(val => val ?? '', z.string()),
   maxRetries: z.coerce.number().min(0).default(3),
+  exemptionCount: z.coerce.number().min(0).default(0),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

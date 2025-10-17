@@ -171,6 +171,12 @@ async function getLastCharMessage(): Promise<string> {
  * @returns {Promise<boolean>} 如果成功或无事可做则返回 true，如果用户取消则返回 false
  */
 async function triggerSscAndProcess(): Promise<boolean> {
+  // 检查是否在豁免次数内
+  if (settings.executedCount < settings.exemptionCount) {
+    toastr.info(`当前执行次数 (${settings.executedCount}) 小于豁免次数 (${settings.exemptionCount})，跳过SSC和一键处理。`);
+    return true; // 返回 true 以继续主流程
+  }
+
   const api = (window.parent as any).aiOptimizer;
   if (!api || typeof api.manualOptimize !== 'function' || typeof api.optimizeText !== 'function') {
     toastr.warning('未找到 AI Optimizer API，跳过优化步骤。');

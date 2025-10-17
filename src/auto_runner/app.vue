@@ -122,6 +122,14 @@
           class="text_pole"
           min="0"
         />
+        <label for="auto_runner_exemption_count">SSC及一键处理豁免次数</label>
+        <input
+          id="auto_runner_exemption_count"
+          v-model.number="settings.exemptionCount"
+          type="number"
+          class="text_pole"
+          min="0"
+        />
         <label for="auto_runner_executed_count">自动执行次数计数</label>
         <div id="auto_runner_executed_count" class="text_pole">{{ settings.executedCount }}</div>
       </div>
