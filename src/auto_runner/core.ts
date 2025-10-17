@@ -187,6 +187,40 @@ async function getLastCharMessage(): Promise<string> {
 }
 
 /**
+ * 执行“一键处理”按钮的核心逻辑
+ * 1. 移除最后一条消息中的 <br> 标签
+ * 2. 触发“重新读取初始变量”
+ * 3. 触发“重新处理变量”
+ */
+async function executeOneClickProcess() {
+  toastr.info('正在执行“一键处理”...');
+  try {
+    // 步骤 1: 去除换行标签
+    const messages = getChatMessages(-1);
+    if (messages && messages.length > 0) {
+      const lastMessage = messages[0];
+      const { message_id, message: originalContent } = lastMessage;
+      const findRegex = /<\/?br\b[^>]*>/gi;
+
+      if (findRegex.test(originalContent)) {
+        const newContent = originalContent.replace(findRegex, '\n');
+        await setChatMessages([{ message_id, message: newContent }]);
+        console.log('[AutoRunner] 已移除<br>标签。');
+      }
+    }
+
+    // 步骤 2 & 3: 触发其他按钮事件
+    await eventEmit(getButtonEvent('重新读取初始变量'));
+    await eventEmit(getButtonEvent('重新处理变量'));
+
+    toastr.success('“一键处理”完成。');
+  } catch (error) {
+    console.error('[AutoRunner] 执行“一键处理”时出错:', error);
+    toastr.error('执行“一键处理”时发生错误。');
+  }
+}
+
+/**
  * 执行SSC优化和“一键处理”，并处理用户取消操作
  * @returns {Promise<boolean>} 如果成功或无事可做则返回 true，如果用户取消则返回 false
  */
@@ -286,16 +320,13 @@ async function triggerSscAndProcess(): Promise<boolean> {
       });
     }
 
-    // 关键修复：恢复无条件延迟。
-    // 实践表明，无论SSC是否执行，都需要一个延迟来确保酒馆状态稳定，
-    // 以便“一键处理”按钮能够被正确触发。
+    // 关键修复：恢复无条件延迟，以确保SSC替换后的DOM更新完成。
     toastr.info('等待2秒以确保系统稳定...');
     await delay(2000);
 
-    // 执行“一键处理”
-    toastr.info('执行“一键处理”...');
-    await eventEmit(getButtonEvent('一键处理'));
-    await delay(5000);
+    // 直接调用“一键处理”的逻辑，而不是通过事件
+    await executeOneClickProcess();
+    await delay(5000); // 保留原有的5秒等待
 
     return true; // 成功
   } catch (error) {
