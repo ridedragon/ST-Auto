@@ -498,14 +498,9 @@
 
     const buttonName = '全自动运行';
 
-    // 注册按钮点击事件
-    // 这个事件会由 src/auto_runner/core.ts 中的 eventOn(getButtonEvent('全自动运行'), ...) 捕获
-    // 这里我们只是确保按钮存在于UI上，并给它一个可被触发的事件名
-    eventOn(getButtonEvent(buttonName), () => {
-        // 核心逻辑在 auto_runner 脚本中处理，这里可以留空或只打印一个日志
-        console.log(`按钮 "${buttonName}" 被点击，事件已发出。`);
-        // 你也可以在这里切换按钮的视觉状态，但这最好在核心脚本中完成
-    });
+    // “全自动运行”按钮的核心逻辑完全由 src/auto_runner/core.ts 脚本处理。
+    // 为彻底避免因两个脚本同时监听同一个按钮而导致的事件冲突，此处不再注册事件监听器。
+    // 本文件的作用仅为确保该按钮在UI上存在。
 
     // 自动将按钮添加到UI
     (async function () {
