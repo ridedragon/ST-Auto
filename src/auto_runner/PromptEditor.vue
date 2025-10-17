@@ -26,7 +26,7 @@
         </select>
       </div>
     </div>
-    <button class="menu_button" @click="addEntry">添加提示词条目</button>
+    <button class="menu_button wide-button" @click="addEntry">添加提示词条目</button>
   </div>
 </template>
 
