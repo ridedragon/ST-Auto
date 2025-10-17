@@ -12,8 +12,21 @@
     >
       <div class="rule-header">
         <span class="drag-handle">☰</span>
-        <input v-if="!entry.is_chat_history" v-model="entry.enabled" type="checkbox" class="rule-toggle" @change="update" />
-        <input v-model="entry.name" type="text" class="text_pole rule-name" :readonly="entry.is_chat_history" placeholder="条目名称" @input="update" />
+        <input
+          v-if="!entry.is_chat_history"
+          v-model="entry.enabled"
+          type="checkbox"
+          class="rule-toggle"
+          @change="update"
+        />
+        <input
+          v-model="entry.name"
+          type="text"
+          class="text_pole rule-name"
+          :readonly="entry.is_chat_history"
+          placeholder="条目名称"
+          @input="update"
+        />
         <div class="buttons">
           <button v-if="!entry.is_chat_history" class="menu_button icon-button" @click="toggleEdit(entry)">
             <i :class="['fa-solid', entry.editing ? 'fa-folder-open' : 'fa-folder']"></i>

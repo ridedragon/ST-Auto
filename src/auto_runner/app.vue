@@ -321,5 +321,4 @@ input[type='range'] {
   flex-direction: column;
   gap: 5px;
 }
-
 </style>

@@ -35,13 +35,31 @@ export const SettingsSchema = z.object({
   max_tokens: z.coerce.number().min(1).default(1024),
   totalReplies: z.coerce.number().min(1).default(10),
   executedCount: z.coerce.number().min(0).default(0),
-  
+
   // 新的正则表达式规则数组
   contextRegexRules: z.array(RegexRuleSchema).default([
-    { id: 'default_1', name: '移除 StatusPlaceHolderImpl', find: '/<StatusPlaceHolderImpl\\/>/g', replace: '', enabled: true },
+    {
+      id: 'default_1',
+      name: '移除 StatusPlaceHolderImpl',
+      find: '/<StatusPlaceHolderImpl\\/>/g',
+      replace: '',
+      enabled: true,
+    },
     { id: 'default_2', name: '移除 HTML 注释', find: '/\\s*<!--[\\s\\S]*?-->\\s*/g', replace: '', enabled: true },
-    { id: 'default_3', name: '移除 think 标签之前的内容', find: '/^[\\s\\S]*?<\\/think(ing)?>\\n?/', replace: '', enabled: true },
-    { id: 'default_4', name: '移除 UpdateVariable 标签', find: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm', replace: '', enabled: true },
+    {
+      id: 'default_3',
+      name: '移除 think 标签之前的内容',
+      find: '/^[\\s\\S]*?<\\/think(ing)?>\\n?/',
+      replace: '',
+      enabled: true,
+    },
+    {
+      id: 'default_4',
+      name: '移除 UpdateVariable 标签',
+      find: '/<UpdateVariable>[\\s\\S]*?<\\/UpdateVariable>/gm',
+      replace: '',
+      enabled: true,
+    },
   ]),
   subAiRegexRules: z.array(RegexRuleSchema).default([]),
 
