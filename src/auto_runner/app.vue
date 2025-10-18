@@ -6,7 +6,7 @@
     </div>
 
     <div class="inline-drawer-content">
-      <div class="flex-container flexFlowColumn">
+      <div class="flex-container flexFlowColumn" style="padding-bottom: 0.5em;">
         <label class="checkbox_label" for="auto_runner_enabled">
           <input id="auto_runner_enabled" v-model="settings.enabled" type="checkbox" />
           <span>启用脚本 (核心功能)</span>
@@ -14,11 +14,12 @@
       </div>
 
       <div class="section-wrapper">
-        <div class="section-header" @click="sections.promptSets = !sections.promptSets">
+        <input type="checkbox" id="section-toggle-prompts" class="section-toggle-checkbox" />
+        <label for="section-toggle-prompts" class="section-header">
           <strong>提示词配置集</strong>
-          <i :class="['fa-solid', 'fa-chevron-right', { 'is-rotated': sections.promptSets }]"></i>
-        </div>
-        <div v-show="sections.promptSets" class="section-content">
+          <i class="fa-solid fa-chevron-right"></i>
+        </label>
+        <div class="section-content">
           <div class="set-manager">
             <select v-model="settings.activePromptSetId" class="text_pole set-select">
               <option v-for="set in settings.promptSets" :key="set.id" :value="set.id">
@@ -42,19 +43,17 @@
             <button class="menu_button wide-button" @click="exportActivePromptSet">导出当前配置</button>
           </div>
           <hr style="margin: 15px 0;" />
-          <PromptEditor
-            :entries="activePromptSet.promptEntries"
-            @update:entries="updateEntries"
-          />
+          <PromptEditor :entries="activePromptSet.promptEntries" @update:entries="updateEntries" />
         </div>
       </div>
 
       <div class="section-wrapper">
-        <div class="section-header" @click="sections.contextRegex = !sections.contextRegex">
+        <input type="checkbox" id="section-toggle-context-regex" class="section-toggle-checkbox" />
+        <label for="section-toggle-context-regex" class="section-header">
           <strong>上下文正则处理</strong>
-          <i :class="['fa-solid', 'fa-chevron-right', { 'is-rotated': sections.contextRegex }]"></i>
-        </div>
-        <div v-show="sections.contextRegex" class="section-content">
+          <i class="fa-solid fa-chevron-right"></i>
+        </label>
+        <div class="section-content">
           <p class="description">在将聊天记录发送给副AI之前，按顺序应用以下规则。</p>
           <div v-for="(rule, index) in settings.contextRegexRules" :key="rule.id" class="rule-item">
             <div class="rule-header">
@@ -72,11 +71,12 @@
       </div>
 
       <div class="section-wrapper">
-        <div class="section-header" @click="sections.subAiRegex = !sections.subAiRegex">
+        <input type="checkbox" id="section-toggle-subai-regex" class="section-toggle-checkbox" />
+        <label for="section-toggle-subai-regex" class="section-header">
           <strong>副AI输出正则处理</strong>
-          <i :class="['fa-solid', 'fa-chevron-right', { 'is-rotated': sections.subAiRegex }]"></i>
-        </div>
-        <div v-show="sections.subAiRegex" class="section-content">
+          <i class="fa-solid fa-chevron-right"></i>
+        </label>
+        <div class="section-content">
           <p class="description">在收到副AI的回复后，按顺序应用以下规则。</p>
           <div v-for="(rule, index) in settings.subAiRegexRules" :key="rule.id" class="rule-item">
             <div class="rule-header">
@@ -94,27 +94,16 @@
       </div>
 
       <div class="section-wrapper">
-        <div class="section-header" @click="sections.apiSettings = !sections.apiSettings">
+        <input type="checkbox" id="section-toggle-api" class="section-toggle-checkbox" />
+        <label for="section-toggle-api" class="section-header">
           <strong>API 调用设置</strong>
-          <i :class="['fa-solid', 'fa-chevron-right', { 'is-rotated': sections.apiSettings }]"></i>
-        </div>
-        <div v-show="sections.apiSettings" class="section-content flex-container flexFlowColumn">
+          <i class="fa-solid fa-chevron-right"></i>
+        </label>
+        <div class="section-content flex-container flexFlowColumn">
           <label for="auto_runner_api_url">API 地址</label>
-          <input
-            id="auto_runner_api_url"
-            v-model="settings.apiUrl"
-            type="text"
-            class="text_pole"
-            placeholder="http://localhost:1234/v1"
-          />
+          <input id="auto_runner_api_url" v-model="settings.apiUrl" type="text" class="text_pole" placeholder="http://localhost:1234/v1" />
           <label for="auto_runner_api_key">API 密钥</label>
-          <input
-            id="auto_runner_api_key"
-            v-model="settings.apiKey"
-            type="password"
-            class="text_pole"
-            placeholder="留空表示无需密钥"
-          />
+          <input id="auto_runner_api_key" v-model="settings.apiKey" type="password" class="text_pole" placeholder="留空表示无需密钥" />
           <div class="flex-container">
             <button class="menu_button wide-button" @click="getModels">获取模型</button>
           </div>
@@ -124,75 +113,40 @@
             <option v-for="model in models" :key="model" :value="model">{{ model }}</option>
           </select>
           <label for="auto_runner_temperature">Temperature: {{ settings.temperature }}</label>
-          <input
-            id="auto_runner_temperature"
-            v-model.number="settings.temperature"
-            type="range"
-            step="0.1"
-            min="0"
-            max="2"
-          />
+          <input id="auto_runner_temperature" v-model.number="settings.temperature" type="range" step="0.1" min="0" max="2" />
           <label for="auto_runner_top_p">Top P: {{ settings.top_p }}</label>
           <input id="auto_runner_top_p" v-model.number="settings.top_p" type="range" step="0.05" min="0" max="1" />
           <label for="auto_runner_top_k">Top K: {{ settings.top_k }}</label>
           <input id="auto_runner_top_k" v-model.number="settings.top_k" type="range" step="1" min="0" max="100" />
           <label for="auto_runner_max_tokens">Max Tokens: {{ settings.max_tokens }}</label>
-          <input
-            id="auto_runner_max_tokens"
-            v-model.number="settings.max_tokens"
-            type="number"
-            class="text_pole"
-            min="1"
-          />
+          <input id="auto_runner_max_tokens" v-model.number="settings.max_tokens" type="number" class="text_pole" min="1" />
         </div>
       </div>
 
       <div class="section-wrapper">
-        <div class="section-header" @click="sections.automationSettings = !sections.automationSettings">
+        <input type="checkbox" id="section-toggle-automation" class="section-toggle-checkbox" />
+        <label for="section-toggle-automation" class="section-header">
           <strong>自动化设置</strong>
-          <i :class="['fa-solid', 'fa-chevron-right', { 'is-rotated': sections.automationSettings }]"></i>
-        </div>
-        <div v-show="sections.automationSettings" class="section-content flex-container flexFlowColumn">
-        <label for="auto_runner_total_replies">总回复次数</label>
-        <input
-          id="auto_runner_total_replies"
-          v-model.number="settings.totalReplies"
-          type="number"
-          class="text_pole"
-          min="1"
-        />
-        <label for="auto_runner_max_retries">最大重试次数</label>
-        <input
-          id="auto_runner_max_retries"
-          v-model.number="settings.maxRetries"
-          type="number"
-          class="text_pole"
-          min="0"
-        />
-        <label for="auto_runner_exemption_count">SSC及一键处理豁免次数</label>
-        <input
-          id="auto_runner_exemption_count"
-          v-model.number="settings.exemptionCount"
-          type="number"
-          class="text_pole"
-          min="0"
-        />
-        <label class="checkbox_label" for="auto_runner_concise_notifications">
-          <input id="auto_runner_concise_notifications" v-model="settings.conciseNotifications" type="checkbox" />
-          <span>简洁通知模式</span>
+          <i class="fa-solid fa-chevron-right"></i>
         </label>
-        <label for="auto_runner_executed_count">自动执行次数计数</label>
-        <div id="auto_runner_executed_count" class="text_pole">{{ settings.executedCount }}</div>
-        <button
-          :disabled="!isCallingSubAI"
-          :class="['menu_button', 'wide-button', { danger: isCallingSubAI }]"
-          style="margin-top: 15px"
-          @click="abortSubAICall"
-          :title="isCallingSubAI ? '点击以中止请求' : '（无正在进行的请求）'"
-        >
-          <i class="fa-solid fa-stop"></i>
-          {{ isCallingSubAI ? '中断副 AI' : '中断副 AI' }}
-        </button>
+        <div class="section-content flex-container flexFlowColumn">
+          <label for="auto_runner_total_replies">总回复次数</label>
+          <input id="auto_runner_total_replies" v-model.number="settings.totalReplies" type="number" class="text_pole" min="1" />
+          <label for="auto_runner_max_retries">最大重试次数</label>
+          <input id="auto_runner_max_retries" v-model.number="settings.maxRetries" type="number" class="text_pole" min="0" />
+          <label for="auto_runner_exemption_count">SSC及一键处理豁免次数</label>
+          <input id="auto_runner_exemption_count" v-model.number="settings.exemptionCount" type="number" class="text_pole" min="0" />
+          <label class="checkbox_label" for="auto_runner_concise_notifications">
+            <input id="auto_runner_concise_notifications" v-model="settings.conciseNotifications" type="checkbox" />
+            <span>简洁通知模式</span>
+          </label>
+          <label for="auto_runner_executed_count">自动执行次数计数</label>
+          <div id="auto_runner_executed_count" class="text_pole">{{ settings.executedCount }}</div>
+          <button :disabled="!isCallingSubAI" :class="['menu_button', 'wide-button', { danger: isCallingSubAI }]" style="margin-top: 15px" @click="abortSubAICall" :title="isCallingSubAI ? '点击以中止请求' : '（无正在进行的请求）'">
+            <i class="fa-solid fa-stop"></i>
+            {{ isCallingSubAI ? '中断副 AI' : '中断副 AI' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -219,13 +173,6 @@ import type { PromptEntry } from './types';
 
 const models = ref<string[]>([]);
 
-const sections = ref({
-  promptSets: false,
-  contextRegex: false,
-  subAiRegex: false,
-  apiSettings: false,
-  automationSettings: false,
-});
 
 // 监视脚本启用/禁用状态
 watch(
@@ -301,6 +248,18 @@ const getModels = async () => {
 .section-wrapper {
   border-top: 1px solid var(--bg2);
   padding: 0.5em 0;
+
+  &:first-of-type {
+    padding-top: 0.5em;
+  }
+  &:last-of-type {
+    padding-bottom: 0;
+    border-bottom: 1px solid var(--bg2);
+  }
+}
+
+.section-toggle-checkbox {
+  display: none;
 }
 
 .section-header {
@@ -323,14 +282,19 @@ const getModels = async () => {
   i {
     transition: transform 0.3s ease;
   }
-
-  .is-rotated {
-    transform: rotate(90deg);
-  }
 }
 
 .section-content {
+  display: none;
   padding: 10px 4px 0;
+}
+
+.section-toggle-checkbox:checked + .section-header i {
+  transform: rotate(90deg);
+}
+
+.section-toggle-checkbox:checked ~ .section-content {
+  display: block;
 }
 
 .wide-button {
