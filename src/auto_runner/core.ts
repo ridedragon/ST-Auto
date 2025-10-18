@@ -153,8 +153,9 @@ export function importPromptSets() {
 
 // 创建一个防抖函数用于保存
 const debouncedSave = _.debounce((newSettings: Settings) => {
-  // 在保存前深度克隆，移除Vue的Proxy，防止数据损坏
-  replaceVariables(_.cloneDeep(newSettings), { type: 'script', script_id: getScriptId() });
+  // 关键修复：使用JSON序列化来彻底净化对象，移除Vue的Proxy
+  const pureSettings = JSON.parse(JSON.stringify(newSettings));
+  replaceVariables(pureSettings, { type: 'script', script_id: getScriptId() });
   console.log('[AutoRunner] Settings saved.');
 }, 500);
 
@@ -214,10 +215,10 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  * 获取最新的设置，并处理旧数据迁移
  */
 async function refreshSettings() {
-  // 1. 加载原始数据，它可能是纯对象，也可能是之前版本损坏的 Vue Proxy
+  // 1. 加载原始数据
   const savedSettingsRaw = getVariables({ type: 'script', script_id: getScriptId() }) || {};
-  // 2. 关键修复：深度克隆以“净化”数据，将任何 Proxy 转换为纯对象
-  const savedSettings = _.cloneDeep(savedSettingsRaw);
+  // 2. 关键修复：使用JSON序列化来彻底净化对象，移除之前版本可能存入的Proxy
+  const savedSettings = JSON.parse(JSON.stringify(savedSettingsRaw));
   const result = SettingsSchema.safeParse(savedSettings);
 
   if (result.success) {
@@ -271,7 +272,8 @@ async function refreshSettings() {
     settings.value = parsed;
     if (wasModified) {
       // 如果我们修复了任何东西，立即保存回去
-      replaceVariables(_.cloneDeep(parsed), { type: 'script', script_id: getScriptId() });
+      debouncedSave.cancel(); // 取消任何待处理的保存
+      replaceVariables(JSON.parse(JSON.stringify(parsed)), { type: 'script', script_id: getScriptId() });
     }
   } else {
     // 2. 解析失败，数据已损坏或格式过时
@@ -298,7 +300,8 @@ async function refreshSettings() {
     settings.value = defaultSettings;
 
     // 用这个全新的默认设置覆盖掉已损坏的旧数据，防止下次加载再次失败
-    replaceVariables(_.cloneDeep(defaultSettings), { type: 'script', script_id: getScriptId() });
+    debouncedSave.cancel(); // 取消任何待处理的保存
+    replaceVariables(JSON.parse(JSON.stringify(defaultSettings)), { type: 'script', script_id: getScriptId() });
   }
 }
 
@@ -642,7 +645,7 @@ async function runAutomation(isFirstRun = false) {
         subAiRetryCount++;
         if (subAiRetryCount > settings.value.maxRetries) {
           toastr.error(`调用副AI已达到最大重试次数 (${settings.value.maxRetries})，自动化已停止。`);
-          stopAutomation();
+          stopAutomation({ skipFinalProcessing: true });
           return;
         }
         toastr.warning(`调用副AI失败，将在5秒后重试 (${subAiRetryCount}/${settings.value.maxRetries})`);
@@ -652,7 +655,7 @@ async function runAutomation(isFirstRun = false) {
       if (!subAiReply) {
         // 理论上不会执行到这里，因为上面的循环会return
         toastr.error('未能从副AI获取回复，自动化已停止。');
-        stopAutomation();
+        stopAutomation({ skipFinalProcessing: true });
         return;
       }
 
@@ -677,7 +680,7 @@ async function runAutomation(isFirstRun = false) {
     console.error('自动化循环出错:', error);
     toastr.error(`自动化循环发生意外错误: ${(error as Error).message}，流程已终止。`);
     state = AutomationState.ERROR;
-    stopAutomation();
+    stopAutomation({ skipFinalProcessing: true });
   }
 }
 
@@ -734,7 +737,7 @@ async function startAutomation() {
 /**
  * 停止全自动运行
  */
-async function stopAutomation() {
+async function stopAutomation(options: { skipFinalProcessing?: boolean } = {}) {
   if (state === AutomationState.IDLE) return;
 
   toastr.info('全自动运行已停止。');
@@ -752,6 +755,12 @@ async function stopAutomation() {
 
   // 尝试停止任何正在进行的生成
   triggerSlash('/stop');
+
+  // 如果是因错误而停止，则跳过最终处理
+  if (options.skipFinalProcessing) {
+    toastr.warning('因发生错误而跳过最终处理，脚本已彻底结束。');
+    return;
+  }
 
   // 最终处理：确保最后一条AI消息也被处理
   toastr.info('正在对最后生成的消息执行最终处理...');
