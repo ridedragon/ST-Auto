@@ -214,36 +214,16 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  * 获取最新的设置，并处理旧数据迁移
  */
 async function refreshSettings() {
-  try {
-    const savedSettings = getVariables({ type: 'script', script_id: getScriptId() }) || {};
+  const savedSettings = getVariables({ type: 'script', script_id: getScriptId() }) || {};
+  const result = SettingsSchema.safeParse(savedSettings);
 
-    // 定义一个临时的旧版设置schema用于安全检查
-    const OldSettingsSchema = z.object({
-      promptEntries: z.array(z.any()).optional(),
-      promptSets: z.array(z.any()).optional(),
-    });
-    const parsedOld = OldSettingsSchema.safeParse(savedSettings);
+  if (result.success) {
+    // 1. 解析成功，现在对数据进行健康检查和修复
+    const parsed = result.data;
+    let wasModified = false;
 
-    // --- 数据迁移逻辑 ---
-    if (parsedOld.success && parsedOld.data.promptEntries) {
-      toastr.info('检测到旧版设置，正在迁移...');
-      const newSet = PromptSetSchema.parse({
-        name: '默认配置',
-        promptEntries: parsedOld.data.promptEntries,
-      });
-
-      delete (savedSettings as any).promptEntries; // 删除旧字段
-
-      if (!savedSettings.promptSets) {
-        savedSettings.promptSets = [];
-      }
-      (savedSettings.promptSets as any[]).push(newSet);
-      (savedSettings as any).activePromptSetId = newSet.id;
-      toastr.success('设置迁移完成！');
-    }
-
-    // --- 确保至少有一个配置集存在，并且每个配置集都有聊天记录条目 ---
-    if (!savedSettings.promptSets || savedSettings.promptSets.length === 0) {
+    // 确保至少有一个配置集
+    if (parsed.promptSets.length === 0) {
       const chatHistoryEntry = PromptEntrySchema.parse({
         name: '聊天记录',
         content: '此条目是聊天记录的占位符',
@@ -256,13 +236,14 @@ async function refreshSettings() {
         name: '默认配置',
         promptEntries: [chatHistoryEntry],
       });
-      savedSettings.promptSets = [defaultSet];
-      savedSettings.activePromptSetId = defaultSet.id;
+      parsed.promptSets.push(defaultSet);
+      parsed.activePromptSetId = defaultSet.id;
+      wasModified = true;
+      toastr.info('未找到任何配置，已创建默认配置。');
     } else {
-      // 检查每个已存在的配置集
-      for (const pSet of savedSettings.promptSets) {
-        const hasChatHistory = pSet.promptEntries.some((e: any) => e.is_chat_history);
-        if (!hasChatHistory) {
+      // 确保每个配置集都有聊天记录条目
+      for (const pSet of parsed.promptSets) {
+        if (!pSet.promptEntries.some(e => e.is_chat_history)) {
           const chatHistoryEntry = PromptEntrySchema.parse({
             name: '聊天记录',
             content: '此条目是聊天记录的占位符',
@@ -271,24 +252,50 @@ async function refreshSettings() {
             role: 'user',
             is_chat_history: true,
           });
-          pSet.promptEntries.unshift(chatHistoryEntry); // 加到最前面
+          pSet.promptEntries.unshift(chatHistoryEntry);
+          wasModified = true;
           toastr.info(`为配置 "${pSet.name}" 补全了缺失的“聊天记录”条目。`);
         }
       }
     }
 
-    // --- 确保 activePromptSetId 有效 ---
-    const activeSetExists = savedSettings.promptSets.some((p: any) => p.id === savedSettings.activePromptSetId);
-    if (!activeSetExists) {
-      savedSettings.activePromptSetId = savedSettings.promptSets[0]?.id || null;
+    // 确保 activePromptSetId 有效
+    if (!parsed.promptSets.some(p => p.id === parsed.activePromptSetId)) {
+      parsed.activePromptSetId = parsed.promptSets[0]?.id || null;
+      wasModified = true;
     }
 
-    // 直接使用 Zod 解析，它会自动处理默认值，这比 lodash.merge 更安全
-    settings.value = SettingsSchema.parse(savedSettings);
-  } catch (error) {
-    console.error('[AutoRunner] 加载或解析设置失败:', error);
+    settings.value = parsed;
+    if (wasModified) {
+      // 如果我们修复了任何东西，立即保存回去
+      replaceVariables(_.cloneDeep(parsed), { type: 'script', script_id: getScriptId() });
+    }
+  } else {
+    // 2. 解析失败，数据已损坏或格式过时
+    console.error('[AutoRunner] 加载或解析设置失败:', result.error);
     toastr.error('加载设置失败，将使用默认设置。');
-    settings.value = SettingsSchema.parse({});
+
+    // 创建一个全新的、有效的默认状态
+    const chatHistoryEntry = PromptEntrySchema.parse({
+      name: '聊天记录',
+      content: '此条目是聊天记录的占位符',
+      enabled: true,
+      editing: false,
+      role: 'user',
+      is_chat_history: true,
+    });
+    const defaultSet = PromptSetSchema.parse({
+      name: '默认配置',
+      promptEntries: [chatHistoryEntry],
+    });
+    const defaultSettings = SettingsSchema.parse({
+      promptSets: [defaultSet],
+      activePromptSetId: defaultSet.id,
+    });
+    settings.value = defaultSettings;
+
+    // 用这个全新的默认设置覆盖掉已损坏的旧数据，防止下次加载再次失败
+    replaceVariables(_.cloneDeep(defaultSettings), { type: 'script', script_id: getScriptId() });
   }
 }
 
