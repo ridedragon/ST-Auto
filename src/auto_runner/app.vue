@@ -182,12 +182,14 @@
         <div id="auto_runner_executed_count" class="text_pole">{{ settings.executedCount }}</div>
 
         <button
-          v-if="isCallingSubAI"
-          class="menu_button wide-button danger"
+          :disabled="!isCallingSubAI"
+          :class="['menu_button', 'wide-button', { danger: isCallingSubAI }]"
           style="margin-top: 15px"
           @click="abortSubAICall"
+          :title="isCallingSubAI ? '点击以中止请求' : '（无正在进行的请求）'"
         >
-          <i class="fa-solid fa-stop"></i> 中断副 AI
+          <i class="fa-solid fa-stop"></i>
+          {{ isCallingSubAI ? '中断副 AI' : '中断副 AI' }}
         </button>
       </div>
     </div>

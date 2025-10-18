@@ -425,9 +425,10 @@ async function callSubAI(): Promise<string | null | typeof ABORT_SIGNAL> {
     }
     return null;
   } finally {
-    if (toastElement) {
-      toastr.remove(toastElement);
-    }
+    // toastr.remove() 可能因元素被修改而不可靠。
+    // toastr.clear() 是一个更稳健的方法，可以移除所有提示。
+    // 因为这是我们期望的唯一持久性提示，所以这样做是安全的。
+    toastr.clear();
     isCallingSubAI.value = false;
     subAiAbortController = null;
   }
