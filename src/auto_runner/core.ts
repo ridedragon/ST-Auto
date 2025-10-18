@@ -283,7 +283,8 @@ async function refreshSettings() {
       savedSettings.activePromptSetId = savedSettings.promptSets[0]?.id || null;
     }
 
-    settings.value = SettingsSchema.parse(_.merge(SettingsSchema.parse({}), savedSettings));
+    // 直接使用 Zod 解析，它会自动处理默认值，这比 lodash.merge 更安全
+    settings.value = SettingsSchema.parse(savedSettings);
   } catch (error) {
     console.error('[AutoRunner] 加载或解析设置失败:', error);
     toastr.error('加载设置失败，将使用默认设置。');
