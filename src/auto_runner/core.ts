@@ -26,6 +26,7 @@ let state: AutomationState = AutomationState.IDLE;
 let settings: Settings = SettingsSchema.parse({});
 let retryCount = 0;
 let internalExemptionCounter = 0; // 新增的、只在内存中的豁免计数器
+let isTrulyAutomatedMode = false; // “真·自动化”模式开关
 
 // --- 辅助函数 ---
 
@@ -241,6 +242,15 @@ async function executeOneClickProcess() {
  * 执行SSC优化和“一键处理”，并处理用户取消操作
  * @returns {Promise<boolean>} 如果成功或无事可做则返回 true，如果用户取消则返回 false
  */
+/**
+ * 切换“真·自动化”模式
+ * @param enable 是否开启
+ */
+export function toggleTrulyAutomatedMode(enable: boolean) {
+  isTrulyAutomatedMode = enable;
+  toastr.info(`“真·自动化”模式已${enable ? '开启' : '关闭'}`);
+}
+
 async function triggerSscAndProcess(): Promise<boolean> {
   // 使用新的内部计数器进行豁免判断
   if (internalExemptionCounter < settings.exemptionCount) {
@@ -273,12 +283,19 @@ async function triggerSscAndProcess(): Promise<boolean> {
       // 步骤1: 提取和编辑
       (window.parent as any).tempPopupText = sourceContent;
       const extractedPopupContent = `<p>已提取以下内容（可编辑），点击“继续”发送给AI优化：</p><textarea oninput="window.parent.tempPopupText = this.value" id="auto-optimizer-source" class="text_pole" rows="10" style="width: 100%;">${sourceContent}</textarea>`;
-      const continueStep1 = await (window.parent as any).SillyTavern.getContext().callGenericPopup(
-        extractedPopupContent,
-        '步骤1: 提取并编辑',
-        '',
-        { okButton: '继续', cancelButton: '取消', wide: true },
-      );
+
+      let continueStep1: boolean;
+      if (isTrulyAutomatedMode) {
+        toastr.info('[真·自动化] 自动确认步骤1。');
+        continueStep1 = true;
+      } else {
+        continueStep1 = await (window.parent as any).SillyTavern.getContext().callGenericPopup(
+          extractedPopupContent,
+          '步骤1: 提取并编辑',
+          '',
+          { okButton: '继续', cancelButton: '取消', wide: true },
+        );
+      }
 
       const editedSourceContent = (window.parent as any).tempPopupText;
       delete (window.parent as any).tempPopupText;
@@ -311,12 +328,18 @@ async function triggerSscAndProcess(): Promise<boolean> {
                   <p><b>优化后句子 (可编辑):</b></p>
                   <textarea oninput="window.parent.tempPopupText = this.value" id="auto-optimizer-result" class="text_pole" rows="5" style="width: 100%;">${optimizedResultText}</textarea>
               `;
-      const userConfirmed = await (window.parent as any).SillyTavern.getContext().callGenericPopup(
-        optimizedPopupContent,
-        '步骤2: 对比并确认替换',
-        '',
-        { okButton: '替换', cancelButton: '取消', wide: true },
-      );
+      let userConfirmed: boolean;
+      if (isTrulyAutomatedMode) {
+        toastr.info('[真·自动化] 自动确认步骤2。');
+        userConfirmed = true;
+      } else {
+        userConfirmed = await (window.parent as any).SillyTavern.getContext().callGenericPopup(
+          optimizedPopupContent,
+          '步骤2: 对比并确认替换',
+          '',
+          { okButton: '替换', cancelButton: '取消', wide: true },
+        );
+      }
 
       const finalOptimizedText = (window.parent as any).tempPopupText;
       delete (window.parent as any).tempPopupText;
@@ -543,6 +566,11 @@ export function start() {
   });
   // 初始化设置
   refreshSettings();
+
+  // 将核心控制函数暴露到全局，供其他脚本使用
+  initializeGlobal('AutoRunnerCore', {
+    toggleTrulyAutomatedMode,
+  });
 }
 
 /**
