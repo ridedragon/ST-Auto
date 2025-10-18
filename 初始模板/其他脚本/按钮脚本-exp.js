@@ -490,8 +490,6 @@
   const buttonName = '真·自动化运行';
   const targetButtonName = '全自动运行'; // 我们要触发的目标按钮
 
-  let isTrulyAutoRunning = false;
-
   // 按钮点击事件的处理函数
   async function handleTrulyFullAuto() {
     // 等待核心脚本暴露的全局变量
@@ -503,11 +501,8 @@
       return;
     }
 
-    // 切换状态
-    isTrulyAutoRunning = !isTrulyAutoRunning;
-
-    // 调用核心脚本中的函数来更新状态
-    core.toggleTrulyAutomatedMode(isTrulyAutoRunning);
+    // 调用核心脚本中的函数来切换状态
+    core.toggleTrulyAutomatedMode();
 
     // 触发“全自动运行”按钮，让核心脚本根据新状态来决定行为
     // 注意：如果“全自动运行”当前正在运行，再次触发它会停止它。

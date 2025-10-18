@@ -502,11 +502,10 @@ async function executeOneClickProcess() {
  */
 /**
  * 切换“真·自动化”模式
- * @param enable 是否开启
  */
-export function toggleTrulyAutomatedMode(enable: boolean) {
-  isTrulyAutomatedMode = enable;
-  showToast('info', `“真·自动化”模式已${enable ? '开启' : '关闭'}`, true);
+export function toggleTrulyAutomatedMode() {
+  isTrulyAutomatedMode = !isTrulyAutomatedMode;
+  showToast('info', `“真·自动化”模式已${isTrulyAutomatedMode ? '开启' : '关闭'}`, true);
 }
 
 async function triggerSscAndProcess(): Promise<boolean> {
