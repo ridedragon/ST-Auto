@@ -14,7 +14,7 @@
       </div>
 
       <!-- 配置集管理 -->
-      <div class="collapsible-header" @click="sections.promptSets = !sections.promptSets">
+      <div class="collapsible-header" @click.stop="sections.promptSets = !sections.promptSets">
         <strong>提示词配置集</strong>
         <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.promptSets }]"></i>
       </div>
@@ -53,7 +53,7 @@
       <hr />
 
       <!-- 上下文正则编辑器 -->
-      <div class="collapsible-header" @click="sections.contextRegex = !sections.contextRegex">
+      <div class="collapsible-header" @click.stop="sections.contextRegex = !sections.contextRegex">
         <strong>上下文正则处理</strong>
         <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.contextRegex }]"></i>
       </div>
@@ -76,7 +76,7 @@
       <hr />
 
       <!-- 副AI输出正则编辑器 -->
-      <div class="collapsible-header" @click="sections.subAiRegex = !sections.subAiRegex">
+      <div class="collapsible-header" @click.stop="sections.subAiRegex = !sections.subAiRegex">
         <strong>副AI输出正则处理</strong>
         <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.subAiRegex }]"></i>
       </div>
@@ -99,7 +99,7 @@
       <hr />
 
       <!-- API 调用设置 -->
-      <div class="collapsible-header" @click="sections.apiSettings = !sections.apiSettings">
+      <div class="collapsible-header" @click.stop="sections.apiSettings = !sections.apiSettings">
         <strong>API 调用设置</strong>
         <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.apiSettings }]"></i>
       </div>
@@ -154,7 +154,7 @@
       <hr />
 
       <!-- 自动化设置 -->
-      <div class="collapsible-header" @click="sections.automationSettings = !sections.automationSettings">
+      <div class="collapsible-header" @click.stop="sections.automationSettings = !sections.automationSettings">
         <strong>自动化设置</strong>
         <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.automationSettings }]"></i>
       </div>
