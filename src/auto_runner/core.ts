@@ -50,7 +50,7 @@ export function addNewPromptSet() {
   });
   settings.value.promptSets.push(newSet);
   settings.value.activePromptSetId = newSet.id;
-  toastr.success(`已创建新配置 "${newName}"`);
+  showToast('success', `已创建新配置 "${newName}"`);
 }
 
 export function renameActivePromptSet() {
@@ -62,14 +62,14 @@ export function renameActivePromptSet() {
     const setToUpdate = settings.value.promptSets.find(p => p.id === activeSet.id);
     if (setToUpdate) {
       setToUpdate.name = newName;
-      toastr.success('配置已重命名');
+      showToast('success', '配置已重命名');
     }
   }
 }
 
 export function deleteActivePromptSet() {
   if (settings.value.promptSets.length <= 1) {
-    toastr.error('无法删除最后一个配置集');
+    showToast('error', '无法删除最后一个配置集', true);
     return;
   }
 
@@ -83,7 +83,7 @@ export function deleteActivePromptSet() {
     settings.value.promptSets.splice(index, 1);
     // 激活前一个或第一个
     settings.value.activePromptSetId = settings.value.promptSets[Math.max(0, index - 1)]?.id || null;
-    toastr.success(`配置 "${activeSet.name}" 已删除`);
+    showToast('success', `配置 "${activeSet.name}" 已删除`);
   }
 }
 
@@ -101,7 +101,7 @@ export function exportActivePromptSet() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  toastr.success('当前配置已导出');
+  showToast('success', '当前配置已导出');
 }
 
 export function importPromptSets() {
@@ -137,15 +137,15 @@ export function importPromptSets() {
           importedCount++;
         } else {
           console.error('导入的数据格式无效:', parsed.error);
-          toastr.error('一个或多个导入的配置格式无效，详情请查看控制台。');
+          showToast('error', '一个或多个导入的配置格式无效，详情请查看控制台。', true);
         }
       }
       if (importedCount > 0) {
-        toastr.success(`成功导入 ${importedCount} 个配置。`);
+        showToast('success', `成功导入 ${importedCount} 个配置。`);
       }
     } catch (error) {
       console.error('导入失败:', error);
-      toastr.error('导入文件失败，请确保是有效的JSON文件。');
+      showToast('error', '导入文件失败，请确保是有效的JSON文件。', true);
     }
   };
   input.click();
@@ -169,6 +169,18 @@ watch(
 );
 
 // --- 辅助函数 ---
+
+/**
+ * 根据设置决定是否显示通知
+ * @param type 通知类型 ('info', 'success', 'warning', 'error')
+ * @param message 显示的消息
+ * @param alwaysShow 无论如何都显示 (用于最关键的通知)
+ */
+function showToast(type: 'info' | 'success' | 'warning' | 'error', message: string, alwaysShow = false) {
+  if (!settings.value.conciseNotifications || alwaysShow) {
+    toastr[type](message);
+  }
+}
 
 /**
  * 应用一个正则表达式规则数组到文本上
@@ -243,7 +255,7 @@ export async function refreshSettings() {
       parsed.promptSets.push(defaultSet);
       parsed.activePromptSetId = defaultSet.id;
       wasModified = true;
-      toastr.info('未找到任何配置，已创建默认配置。');
+      showToast('info', '未找到任何配置，已创建默认配置。');
     } else {
       // 确保每个配置集都有聊天记录条目
       for (const pSet of parsed.promptSets) {
@@ -258,7 +270,7 @@ export async function refreshSettings() {
           });
           pSet.promptEntries.unshift(chatHistoryEntry);
           wasModified = true;
-          toastr.info(`为配置 "${pSet.name}" 补全了缺失的“聊天记录”条目。`);
+          showToast('info', `为配置 "${pSet.name}" 补全了缺失的“聊天记录”条目。`);
         }
       }
     }
@@ -278,7 +290,7 @@ export async function refreshSettings() {
   } else {
     // 2. 解析失败，数据已损坏或格式过时
     console.error('[AutoRunner] 加载或解析设置失败:', result.error);
-    toastr.error('加载设置失败，将使用默认设置。');
+    showToast('error', '加载设置失败，将使用默认设置。', true);
 
     // 创建一个全新的、有效的默认状态
     const chatHistoryEntry = PromptEntrySchema.parse({
@@ -313,7 +325,7 @@ function shouldStop(): boolean {
     return true;
   }
   if (settings.value.executedCount >= settings.value.totalReplies) {
-    toastr.info('已达到总回复次数，全自动运行结束。');
+    showToast('info', '已达到总回复次数，全自动运行结束。', true);
     return true;
   }
   return false;
@@ -331,11 +343,11 @@ async function incrementExecutedCount() {
  * 调用副AI
  */
 async function callSubAI(): Promise<string | null> {
-  toastr.info('正在调用副AI...');
+  showToast('info', '正在调用副AI...');
   const lastMessageId = await getLastMessageId();
   const allMessages = getChatMessages(`0-${lastMessageId}`); // 获取所有消息
   if (!allMessages || allMessages.length === 0) {
-    toastr.error('无法获取聊天记录');
+    showToast('error', '无法获取聊天记录', true);
     return null;
   }
 
@@ -365,7 +377,7 @@ async function callSubAI(): Promise<string | null> {
   };
 
   console.log('[AutoRunner] 发送给副AI的完整信息:', body);
-  toastr.info('完整的请求信息已打印到控制台 (F12)。');
+  showToast('info', '完整的请求信息已打印到控制台 (F12)。');
 
   try {
     const response = await fetch(`${settings.value.apiUrl}/chat/completions`, {
@@ -386,11 +398,11 @@ async function callSubAI(): Promise<string | null> {
     if (!reply) {
       throw new Error('副AI未返回有效内容');
     }
-    toastr.success('副AI响应成功');
+    showToast('success', '副AI响应成功');
     return reply;
   } catch (error) {
     console.error('调用副AI时出错:', error);
-    toastr.error(`调用副AI失败: ${(error as Error).message}`);
+    showToast('error', `调用副AI失败: ${(error as Error).message}`, true);
     return null;
   }
 }
@@ -430,7 +442,7 @@ async function getLastCharMessage(): Promise<string> {
  * 3. 触发“重新处理变量”
  */
 async function executeOneClickProcess() {
-  toastr.info('正在执行“一键处理”...');
+  showToast('info', '正在执行“一键处理”...');
   try {
     // 步骤 1: 去除换行标签
     const messages = getChatMessages(-1);
@@ -450,10 +462,10 @@ async function executeOneClickProcess() {
     await eventEmit(getButtonEvent('重新读取初始变量'));
     await eventEmit(getButtonEvent('重新处理变量'));
 
-    toastr.success('“一键处理”完成。');
+    showToast('success', '“一键处理”完成。');
   } catch (error) {
     console.error('[AutoRunner] 执行“一键处理”时出错:', error);
-    toastr.error('执行“一键处理”时发生错误。');
+    showToast('error', '执行“一键处理”时发生错误。', true);
   }
 }
 
@@ -467,13 +479,14 @@ async function executeOneClickProcess() {
  */
 export function toggleTrulyAutomatedMode(enable: boolean) {
   isTrulyAutomatedMode = enable;
-  toastr.info(`“真·自动化”模式已${enable ? '开启' : '关闭'}`);
+  showToast('info', `“真·自动化”模式已${enable ? '开启' : '关闭'}`, true);
 }
 
 async function triggerSscAndProcess(): Promise<boolean> {
   // 使用新的内部计数器进行豁免判断
   if (internalExemptionCounter < settings.value.exemptionCount) {
-    toastr.info(
+    showToast(
+      'info',
       `豁免计数 (${internalExemptionCounter}) 小于豁免次数 (${settings.value.exemptionCount})，跳过SSC和一键处理。`,
     );
     internalExemptionCounter++; // 增加内部豁免计数
@@ -482,22 +495,22 @@ async function triggerSscAndProcess(): Promise<boolean> {
 
   const api = (window.parent as any).aiOptimizer;
   if (!api || typeof api.manualOptimize !== 'function' || typeof api.optimizeText !== 'function') {
-    toastr.warning('未找到 AI Optimizer API，跳过优化步骤。');
+    showToast('warning', '未找到 AI Optimizer API，跳过优化步骤。');
     // 即使找不到API，也继续执行“一键处理”
-    toastr.info('执行“一键处理”...');
+    showToast('info', '执行“一键处理”...');
     await eventEmit(getButtonEvent('一键处理'));
     await delay(5000);
     return true;
   }
 
   try {
-    toastr.info('自动化优化流程已启动...');
+    showToast('info', '自动化优化流程已启动...');
     const sourceContent: string | null = await new Promise(resolve => {
       api.manualOptimize((content: string | null) => resolve(content));
     });
 
     if (!sourceContent) {
-      toastr.info('在最后一条角色消息中未找到可优化的内容，跳过SSC优化。');
+      showToast('info', '在最后一条角色消息中未找到可优化的内容，跳过SSC优化。');
     } else {
       // 步骤1: 提取和编辑
       (window.parent as any).tempPopupText = sourceContent;
@@ -505,7 +518,7 @@ async function triggerSscAndProcess(): Promise<boolean> {
 
       let continueStep1: boolean;
       if (isTrulyAutomatedMode) {
-        toastr.info('[真·自动化] 自动确认步骤1。');
+        showToast('info', '[真·自动化] 自动确认步骤1。');
         continueStep1 = true;
       } else {
         continueStep1 = await (window.parent as any).SillyTavern.getContext().callGenericPopup(
@@ -520,11 +533,11 @@ async function triggerSscAndProcess(): Promise<boolean> {
       delete (window.parent as any).tempPopupText;
 
       if (!continueStep1) {
-        toastr.info('自动化流程已由用户在步骤1取消。');
+        showToast('info', '自动化流程已由用户在步骤1取消。');
         return false; // 用户取消
       }
 
-      toastr.info('正在发送给AI优化...');
+      showToast('info', '正在发送给AI优化...');
 
       // 步骤2: 优化
       const lastCharMessage = await getLastCharMessage();
@@ -532,7 +545,7 @@ async function triggerSscAndProcess(): Promise<boolean> {
       const optimizedResultText = await api.optimizeText(editedSourceContent, systemPrompt, lastCharMessage);
 
       if (optimizedResultText === null) {
-        toastr.info('优化被用户取消。');
+        showToast('info', '优化被用户取消。');
         return false; // 用户取消
       }
       if (!optimizedResultText) {
@@ -549,7 +562,7 @@ async function triggerSscAndProcess(): Promise<boolean> {
               `;
       let userConfirmed: boolean;
       if (isTrulyAutomatedMode) {
-        toastr.info('[真·自动化] 自动确认步骤2。');
+        showToast('info', '[真·自动化] 自动确认步骤2。');
         userConfirmed = true;
       } else {
         userConfirmed = await (window.parent as any).SillyTavern.getContext().callGenericPopup(
@@ -564,15 +577,15 @@ async function triggerSscAndProcess(): Promise<boolean> {
       delete (window.parent as any).tempPopupText;
 
       if (!userConfirmed) {
-        toastr.info('替换操作已由用户取消。');
+        showToast('info', '替换操作已由用户取消。');
         return false; // 用户取消
       }
 
-      toastr.info('正在执行SSC替换...');
+      showToast('info', '正在执行SSC替换...');
       await new Promise<void>(resolve => {
         api.replaceMessage(editedSourceContent, finalOptimizedText, (newContent: string | null) => {
           if (newContent) {
-            toastr.success('SSC 替换完成！');
+            showToast('success', 'SSC 替换完成！');
           }
           resolve();
         });
@@ -580,7 +593,7 @@ async function triggerSscAndProcess(): Promise<boolean> {
     }
 
     // 关键修复：恢复无条件延迟，以确保SSC替换后的DOM更新完成。
-    toastr.info('等待2秒以确保系统稳定...');
+    showToast('info', '等待2秒以确保系统稳定...');
     await delay(2000);
 
     // 直接调用“一键处理”的逻辑，而不是通过事件
@@ -590,7 +603,7 @@ async function triggerSscAndProcess(): Promise<boolean> {
     return true; // 成功
   } catch (error) {
     console.error('[Auto Optimizer] 流程执行出错:', error);
-    toastr.error((error as Error).message, '自动化优化流程失败');
+    showToast('error', (error as Error).message, true);
     return false; // 失败
   }
 }
@@ -611,7 +624,7 @@ async function runAutomation(isFirstRun = false) {
   const lastMessage = (getChatMessages(-1) || [])[0];
 
   if (!lastMessage) {
-    toastr.error('无法获取最后一条消息，自动化暂停。');
+    showToast('error', '无法获取最后一条消息，自动化暂停。', true);
     state = AutomationState.PAUSED;
     return;
   }
@@ -619,17 +632,17 @@ async function runAutomation(isFirstRun = false) {
   try {
     if (lastMessage.role === 'user') {
       // --- 分支 A: 最后一条是用户消息 ---
-      toastr.info('检测到用户消息，触发主AI生成...');
+      showToast('info', '检测到用户消息，触发主AI生成...');
       await triggerSlash('/trigger await=true');
       // 主AI响应完成后，绑定的 tavern_events.MESSAGE_RECEIVED 事件会再次触发 runAutomation
     } else {
       // --- 分支 B: 最后一条是AI消息 ---
-      toastr.info('检测到AI消息，开始完整循环...');
+      showToast('info', '检测到AI消息，开始完整循环...');
 
       // 步骤 1 & 2: SSC 和 一键处理
       const processSuccess = await triggerSscAndProcess();
       if (!processSuccess) {
-        toastr.warning('用户取消了操作，全自动运行已停止。');
+        showToast('warning', '用户取消了操作，全自动运行已停止。', true);
         stopAutomation({ skipFinalProcessing: true });
         return;
       }
@@ -644,17 +657,17 @@ async function runAutomation(isFirstRun = false) {
         }
         subAiRetryCount++;
         if (subAiRetryCount > settings.value.maxRetries) {
-          toastr.error(`调用副AI已达到最大重试次数 (${settings.value.maxRetries})，自动化已停止。`);
+          showToast('error', `调用副AI已达到最大重试次数 (${settings.value.maxRetries})，自动化已停止。`, true);
           stopAutomation({ skipFinalProcessing: true });
           return;
         }
-        toastr.warning(`调用副AI失败，将在5秒后重试 (${subAiRetryCount}/${settings.value.maxRetries})`);
+        showToast('warning', `调用副AI失败，将在5秒后重试 (${subAiRetryCount}/${settings.value.maxRetries})`);
         await delay(5000);
       }
 
       if (!subAiReply) {
         // 理论上不会执行到这里，因为上面的循环会return
-        toastr.error('未能从副AI获取回复，自动化已停止。');
+        showToast('error', '未能从副AI获取回复，自动化已停止。', true);
         stopAutomation({ skipFinalProcessing: true });
         return;
       }
@@ -666,7 +679,7 @@ async function runAutomation(isFirstRun = false) {
       // 暂时我们先将它存入一个临时变量，或者考虑用一个 message event
       console.log('处理后的回复:', processedReply);
 
-      toastr.info('以用户身份发送处理后的消息...');
+      showToast('info', '以用户身份发送处理后的消息...');
       // 使用 /send 命令，它默认以用户身份发送
 
       // 根据用户指示，直接发送处理后的消息，不添加任何引号或转义
@@ -678,7 +691,7 @@ async function runAutomation(isFirstRun = false) {
   } catch (error) {
     // 这个 catch 现在只处理 triggerSscAndProcess 和 triggerSlash 中的意外错误
     console.error('自动化循环出错:', error);
-    toastr.error(`自动化循环发生意外错误: ${(error as Error).message}，流程已终止。`);
+    showToast('error', `自动化循环发生意外错误: ${(error as Error).message}，流程已终止。`, true);
     state = AutomationState.ERROR;
     stopAutomation({ skipFinalProcessing: true });
   }
@@ -698,7 +711,10 @@ function onMessageReceived() {
  */
 function forceStop() {
   if (state === AutomationState.RUNNING) {
-    toastr.warning('来自系统的停止信号，全自动运行已终止。');
+    // 在简洁模式下，这条消息会被 stopAutomation 中的消息覆盖，所以只在详细模式下显示
+    if (!settings.value.conciseNotifications) {
+      showToast('warning', '来自系统的停止信号，全自动运行已终止。');
+    }
     stopAutomation({ skipFinalProcessing: true });
   }
 }
@@ -717,7 +733,7 @@ async function startAutomation() {
   // 2. 首先，获取最新的设置，确保任何UI更改都已加载
   await refreshSettings();
 
-  toastr.success('全自动运行已启动！');
+  showToast('success', '全自动运行已启动！', true);
   state = AutomationState.RUNNING;
   retryCount = 0;
   internalExemptionCounter = 0; // 重置内部豁免计数器
@@ -740,7 +756,9 @@ async function startAutomation() {
 async function stopAutomation(options: { skipFinalProcessing?: boolean } = {}) {
   if (state === AutomationState.IDLE) return;
 
-  toastr.info('全自动运行已停止。');
+  const stopMessage = options.skipFinalProcessing ? '全自动运行已因错误或用户操作而终止。' : '全自动运行已停止。';
+  showToast('info', stopMessage, true);
+
   state = AutomationState.IDLE;
 
   // 解绑事件
@@ -752,12 +770,20 @@ async function stopAutomation(options: { skipFinalProcessing?: boolean } = {}) {
 
   // 如果是因错误而停止，则跳过最终处理
   if (options.skipFinalProcessing) {
-    toastr.warning('因发生错误而跳过最终处理，脚本已彻底结束。');
+    // 在简洁模式下，这条消息是多余的，因为上面的 stopMessage 已经足够
+    if (!settings.value.conciseNotifications) {
+      showToast('warning', '因发生错误而跳过最终处理，脚本已彻底结束。');
+    }
+    // 无论如何都要重置真自动化模式
+    if (isTrulyAutomatedMode) {
+      isTrulyAutomatedMode = false;
+      showToast('info', '“真·自动化”模式已随运行停止而关闭。');
+    }
     return;
   }
 
   // 最终处理：确保最后一条AI消息也被处理
-  toastr.info('正在对最后生成的消息执行最终处理...');
+  showToast('info', '正在对最后生成的消息执行最终处理...');
   await delay(1000); // 等待消息渲染稳定
 
   const lastMessage = (getChatMessages(-1) || [])[0];
@@ -768,18 +794,18 @@ async function stopAutomation(options: { skipFinalProcessing?: boolean } = {}) {
     }
     const processSuccess = await triggerSscAndProcess();
     if (processSuccess) {
-      toastr.success('最终处理完成，脚本已彻底结束。');
+      showToast('success', '最终处理完成，脚本已彻底结束。', true);
     } else {
-      toastr.warning('最终处理被用户取消，脚本已彻底结束。');
+      showToast('warning', '最终处理被用户取消，脚本已彻底结束。', true);
     }
   } else {
-    toastr.info('没有需要最终处理的AI消息，脚本已结束。');
+    showToast('info', '没有需要最终处理的AI消息，脚本已结束。');
   }
 
   // 当任何自动化停止时，都自动关闭“真·自动化”模式，防止状态污染
   if (isTrulyAutomatedMode) {
     isTrulyAutomatedMode = false;
-    toastr.info('“真·自动化”模式已随运行停止而关闭。');
+    showToast('info', '“真·自动化”模式已随运行停止而关闭。');
   }
 }
 

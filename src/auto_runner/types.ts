@@ -56,6 +56,7 @@ export const SettingsSchema = z.object({
 
   maxRetries: z.coerce.number().min(0).default(3),
   exemptionCount: z.coerce.number().min(0).default(0),
+  conciseNotifications: z.boolean().default(false),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

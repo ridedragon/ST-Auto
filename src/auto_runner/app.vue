@@ -174,6 +174,10 @@
           class="text_pole"
           min="0"
         />
+        <label class="checkbox_label" for="auto_runner_concise_notifications">
+          <input id="auto_runner_concise_notifications" v-model="settings.conciseNotifications" type="checkbox" />
+          <span>简洁通知模式</span>
+        </label>
         <label for="auto_runner_executed_count">自动执行次数计数</label>
         <div id="auto_runner_executed_count" class="text_pole">{{ settings.executedCount }}</div>
       </div>
