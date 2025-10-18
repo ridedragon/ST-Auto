@@ -72,6 +72,49 @@
   })();
 })();
 
+// --- “终止副ai请求” 按钮 ---
+(function () {
+    'use strict';
+
+    const buttonName = '终止副ai请求';
+
+    // 注册按钮点击事件
+    eventOn(getButtonEvent(buttonName), async () => {
+        try {
+            toastr.info('正在尝试终止副AI的请求...');
+
+            // 等待 auto_runner 的核心脚本加载完成
+            await waitGlobalInitialized('AutoRunnerCore');
+            const core = window.AutoRunnerCore;
+
+            // 检查核心对象和中断函数是否存在
+            if (core && typeof core.abortSubAICall === 'function') {
+                // 调用核心脚本提供的中断函数
+                core.abortSubAICall();
+                // 核心函数内部应该会处理通知，这里不再重复发送
+            } else {
+                toastr.error('无法访问自动化运行脚本的核心功能 (AutoRunnerCore.abortSubAICall)。');
+                console.error('AutoRunnerCore 或 abortSubAICall 未在全局范围中找到。');
+            }
+        } catch (error) {
+            console.error(`[${buttonName}] 脚本出错:`, error);
+            toastr.error('执行终止脚本时发生错误，请按F12查看控制台。');
+        }
+    });
+
+    // 自动将按钮添加到UI
+    (async function () {
+        try {
+            const scriptId = getScriptId();
+            if (scriptId) {
+                appendInexistentScriptButtons(scriptId, [{ name: buttonName, visible: true }]);
+            }
+        } catch (e) {
+            console.log(`无法自动添加“${buttonName}”按钮。请在脚本设置中手动添加。`);
+        }
+    })();
+})();
+
 (function () {
   'use strict';
 

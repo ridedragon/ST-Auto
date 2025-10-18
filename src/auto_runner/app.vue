@@ -13,11 +13,12 @@
         </label>
       </div>
 
-      <hr />
-
       <!-- 配置集管理 -->
-      <div class="flex-container flexFlowColumn">
-        <div><strong>提示词配置集</strong></div>
+      <div class="collapsible-header" @click="sections.promptSets = !sections.promptSets">
+        <strong>提示词配置集</strong>
+        <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.promptSets }]"></i>
+      </div>
+      <div v-show="sections.promptSets" class="collapsible-content">
         <div class="set-manager">
           <select v-model="settings.activePromptSetId" class="text_pole set-select">
             <option v-for="set in settings.promptSets" :key="set.id" :value="set.id">
@@ -40,20 +41,23 @@
           <button class="menu_button wide-button" @click="importPromptSets">导入配置</button>
           <button class="menu_button wide-button" @click="exportActivePromptSet">导出当前配置</button>
         </div>
+
+        <hr style="margin: 15px 0;" />
+
+        <PromptEditor
+          :entries="activePromptSet.promptEntries"
+          @update:entries="updateEntries"
+        />
       </div>
 
       <hr />
 
-      <PromptEditor
-        :entries="activePromptSet.promptEntries"
-        @update:entries="updateEntries"
-      />
-
-      <hr />
-
-      <!-- 新的上下文正则编辑器 -->
-      <div class="flex-container flexFlowColumn">
-        <div><strong>上下文正则处理</strong></div>
+      <!-- 上下文正则编辑器 -->
+      <div class="collapsible-header" @click="sections.contextRegex = !sections.contextRegex">
+        <strong>上下文正则处理</strong>
+        <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.contextRegex }]"></i>
+      </div>
+      <div v-show="sections.contextRegex" class="collapsible-content">
         <p class="description">在将聊天记录发送给副AI之前，按顺序应用以下规则。</p>
         <div v-for="(rule, index) in settings.contextRegexRules" :key="rule.id" class="rule-item">
           <div class="rule-header">
@@ -71,9 +75,12 @@
 
       <hr />
 
-      <!-- 新的副AI输出正则编辑器 -->
-      <div class="flex-container flexFlowColumn">
-        <div><strong>副AI输出正则处理</strong></div>
+      <!-- 副AI输出正则编辑器 -->
+      <div class="collapsible-header" @click="sections.subAiRegex = !sections.subAiRegex">
+        <strong>副AI输出正则处理</strong>
+        <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.subAiRegex }]"></i>
+      </div>
+      <div v-show="sections.subAiRegex" class="collapsible-content">
         <p class="description">在收到副AI的回复后，按顺序应用以下规则。</p>
         <div v-for="(rule, index) in settings.subAiRegexRules" :key="rule.id" class="rule-item">
           <div class="rule-header">
@@ -91,8 +98,12 @@
 
       <hr />
 
-      <div class="flex-container flexFlowColumn">
-        <div><strong>API 调用设置</strong></div>
+      <!-- API 调用设置 -->
+      <div class="collapsible-header" @click="sections.apiSettings = !sections.apiSettings">
+        <strong>API 调用设置</strong>
+        <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.apiSettings }]"></i>
+      </div>
+      <div v-show="sections.apiSettings" class="collapsible-content flex-container flexFlowColumn">
         <label for="auto_runner_api_url">API 地址</label>
         <input
           id="auto_runner_api_url"
@@ -101,7 +112,6 @@
           class="text_pole"
           placeholder="http://localhost:1234/v1"
         />
-
         <label for="auto_runner_api_key">API 密钥</label>
         <input
           id="auto_runner_api_key"
@@ -110,7 +120,6 @@
           class="text_pole"
           placeholder="留空表示无需密钥"
         />
-
         <div class="flex-container">
           <button class="menu_button wide-button" @click="getModels">获取模型</button>
         </div>
@@ -119,7 +128,6 @@
           <option v-if="!settings.model" value="">请先获取模型</option>
           <option v-for="model in models" :key="model" :value="model">{{ model }}</option>
         </select>
-
         <label for="auto_runner_temperature">Temperature: {{ settings.temperature }}</label>
         <input
           id="auto_runner_temperature"
@@ -129,13 +137,10 @@
           min="0"
           max="2"
         />
-
         <label for="auto_runner_top_p">Top P: {{ settings.top_p }}</label>
         <input id="auto_runner_top_p" v-model.number="settings.top_p" type="range" step="0.05" min="0" max="1" />
-
         <label for="auto_runner_top_k">Top K: {{ settings.top_k }}</label>
         <input id="auto_runner_top_k" v-model.number="settings.top_k" type="range" step="1" min="0" max="100" />
-
         <label for="auto_runner_max_tokens">Max Tokens: {{ settings.max_tokens }}</label>
         <input
           id="auto_runner_max_tokens"
@@ -148,8 +153,12 @@
 
       <hr />
 
-      <div class="flex-container flexFlowColumn">
-        <div><strong>自动化设置</strong></div>
+      <!-- 自动化设置 -->
+      <div class="collapsible-header" @click="sections.automationSettings = !sections.automationSettings">
+        <strong>自动化设置</strong>
+        <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.automationSettings }]"></i>
+      </div>
+      <div v-show="sections.automationSettings" class="collapsible-content flex-container flexFlowColumn">
         <label for="auto_runner_total_replies">总回复次数</label>
         <input
           id="auto_runner_total_replies"
@@ -180,7 +189,6 @@
         </label>
         <label for="auto_runner_executed_count">自动执行次数计数</label>
         <div id="auto_runner_executed_count" class="text_pole">{{ settings.executedCount }}</div>
-
         <button
           :disabled="!isCallingSubAI"
           :class="['menu_button', 'wide-button', { danger: isCallingSubAI }]"
@@ -216,6 +224,14 @@ import PromptEditor from './PromptEditor.vue';
 import type { PromptEntry } from './types';
 
 const models = ref<string[]>([]);
+
+const sections = ref({
+  promptSets: true,
+  contextRegex: false,
+  subAiRegex: false,
+  apiSettings: false,
+  automationSettings: true,
+});
 
 // 监视脚本启用/禁用状态
 watch(
@@ -288,6 +304,36 @@ const getModels = async () => {
 </script>
 
 <style lang="scss" scoped>
+.collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: var(--bg2-trans);
+  }
+
+  strong {
+    font-size: 1.1em;
+  }
+
+  i {
+    transition: transform 0.3s ease;
+  }
+
+  .is-rotated {
+    transform: rotate(-90deg);
+  }
+}
+
+.collapsible-content {
+  padding: 10px 4px;
+}
+
 .wide-button {
   width: 100%;
   margin-top: 10px;
