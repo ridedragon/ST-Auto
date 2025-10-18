@@ -699,7 +699,7 @@ function onMessageReceived() {
 function forceStop() {
   if (state === AutomationState.RUNNING) {
     toastr.warning('来自系统的停止信号，全自动运行已终止。');
-    stopAutomation();
+    stopAutomation({ skipFinalProcessing: true });
   }
 }
 
