@@ -669,8 +669,8 @@ async function runAutomation(isFirstRun = false) {
       // 步骤 1 & 2: SSC 和 一键处理
       const processSuccess = await triggerSscAndProcess();
       if (!processSuccess) {
-        showToast('warning', '用户取消了操作，全自动运行已停止。', true);
-        stopAutomation({ skipFinalProcessing: true });
+        // The toast is now handled by stopAutomation, so we remove the one here.
+        stopAutomation({ skipFinalProcessing: true, userCancelled: true });
         return;
       }
 
@@ -682,7 +682,7 @@ async function runAutomation(isFirstRun = false) {
 
         if (result === ABORT_SIGNAL) {
           // 用户中止了操作，停止整个自动化流程
-          stopAutomation({ skipFinalProcessing: true });
+          stopAutomation({ skipFinalProcessing: true, userCancelled: true });
           return;
         }
 
@@ -803,10 +803,17 @@ async function startAutomation() {
 /**
  * 停止全自动运行
  */
-export async function stopAutomation(options: { skipFinalProcessing?: boolean } = {}) {
+export async function stopAutomation(options: { skipFinalProcessing?: boolean; userCancelled?: boolean } = {}) {
   if (state === AutomationState.IDLE) return;
 
-  const stopMessage = options.skipFinalProcessing ? '全自动运行已因错误或用户操作而终止。' : '全自动运行已停止。';
+  let stopMessage: string;
+  if (options.userCancelled) {
+    stopMessage = '用户取消了操作，全自动运行已停止。';
+  } else if (options.skipFinalProcessing) {
+    stopMessage = '全自动运行已因错误而终止。';
+  } else {
+    stopMessage = '全自动运行已停止。';
+  }
   showToast('info', stopMessage, true);
 
   state = AutomationState.IDLE;
