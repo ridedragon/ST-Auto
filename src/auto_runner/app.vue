@@ -247,14 +247,13 @@ const getModels = async () => {
 <style lang="scss" scoped>
 .section-wrapper {
   border-top: 1px solid var(--bg2);
-  padding: 0.5em 0;
 
   &:first-of-type {
-    padding-top: 0.5em;
+    border-top: none;
   }
   &:last-of-type {
-    padding-bottom: 0;
     border-bottom: 1px solid var(--bg2);
+    margin-bottom: 1em;
   }
 }
 
