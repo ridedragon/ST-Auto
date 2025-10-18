@@ -32,7 +32,7 @@ export const PromptSetSchema = z.object({
 export type PromptSet = z.infer<typeof PromptSetSchema>;
 
 export const SettingsSchema = z.object({
-  enabled: z.boolean().default(false),
+  enabled: z.boolean().default(true),
   promptSets: z.array(PromptSetSchema).default([]),
   activePromptSetId: z.string().nullable().default(null),
   apiUrl: z.preprocess(val => val ?? '', z.string()),

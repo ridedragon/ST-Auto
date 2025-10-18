@@ -630,7 +630,7 @@ async function runAutomation(isFirstRun = false) {
       const processSuccess = await triggerSscAndProcess();
       if (!processSuccess) {
         toastr.warning('用户取消了操作，全自动运行已停止。');
-        stopAutomation();
+        stopAutomation({ skipFinalProcessing: true });
         return;
       }
 
@@ -743,12 +743,6 @@ async function stopAutomation(options: { skipFinalProcessing?: boolean } = {}) {
   toastr.info('全自动运行已停止。');
   state = AutomationState.IDLE;
 
-  // 当任何自动化停止时，都自动关闭“真·自动化”模式，防止状态污染
-  if (isTrulyAutomatedMode) {
-    isTrulyAutomatedMode = false;
-    toastr.info('“真·自动化”模式已随运行停止而关闭。');
-  }
-
   // 解绑事件
   eventRemoveListener(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
   eventRemoveListener(tavern_events.GENERATION_STOPPED, forceStop);
@@ -780,6 +774,12 @@ async function stopAutomation(options: { skipFinalProcessing?: boolean } = {}) {
     }
   } else {
     toastr.info('没有需要最终处理的AI消息，脚本已结束。');
+  }
+
+  // 当任何自动化停止时，都自动关闭“真·自动化”模式，防止状态污染
+  if (isTrulyAutomatedMode) {
+    isTrulyAutomatedMode = false;
+    toastr.info('“真·自动化”模式已随运行停止而关闭。');
   }
 }
 
