@@ -151,19 +151,18 @@ export function importPromptSets() {
   input.click();
 }
 
-// 监听设置变化并自动保存
+// 创建一个防抖函数用于保存
+const debouncedSave = _.debounce((newSettings: Settings) => {
+  // 在保存前深度克隆，移除Vue的Proxy，防止数据损坏
+  replaceVariables(_.cloneDeep(newSettings), { type: 'script', script_id: getScriptId() });
+  console.log('[AutoRunner] Settings saved.');
+}, 500);
+
+// 监听设置变化并调用防抖函数
 watch(
   settings,
   newSettings => {
-    // 使用防抖避免过于频繁的写入
-    _.debounce(
-      () => {
-        // 关键修复：在保存前深度克隆，移除Vue的Proxy，防止数据损坏
-        replaceVariables(_.cloneDeep(newSettings), { type: 'script', script_id: getScriptId() });
-      },
-      500,
-      { leading: false, trailing: true },
-    )();
+    debouncedSave(newSettings);
   },
   { deep: true },
 );
@@ -215,7 +214,10 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  * 获取最新的设置，并处理旧数据迁移
  */
 async function refreshSettings() {
-  const savedSettings = getVariables({ type: 'script', script_id: getScriptId() }) || {};
+  // 1. 加载原始数据，它可能是纯对象，也可能是之前版本损坏的 Vue Proxy
+  const savedSettingsRaw = getVariables({ type: 'script', script_id: getScriptId() }) || {};
+  // 2. 关键修复：深度克隆以“净化”数据，将任何 Proxy 转换为纯对象
+  const savedSettings = _.cloneDeep(savedSettingsRaw);
   const result = SettingsSchema.safeParse(savedSettings);
 
   if (result.success) {
