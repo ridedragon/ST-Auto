@@ -180,6 +180,15 @@
         </label>
         <label for="auto_runner_executed_count">自动执行次数计数</label>
         <div id="auto_runner_executed_count" class="text_pole">{{ settings.executedCount }}</div>
+
+        <button
+          v-if="isCallingSubAI"
+          class="menu_button wide-button danger"
+          style="margin-top: 15px"
+          @click="abortSubAICall"
+        >
+          <i class="fa-solid fa-stop"></i> 中断副 AI
+        </button>
       </div>
     </div>
   </div>
@@ -198,6 +207,8 @@ import {
   deleteActivePromptSet,
   importPromptSets,
   exportActivePromptSet,
+  isCallingSubAI,
+  abortSubAICall,
 } from './core';
 import PromptEditor from './PromptEditor.vue';
 import type { PromptEntry } from './types';

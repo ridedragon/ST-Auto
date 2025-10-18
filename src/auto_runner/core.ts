@@ -4,6 +4,10 @@ import { SettingsSchema, type Settings, type RegexRule, PromptSetSchema, PromptE
 import { ref, computed, watch } from 'vue';
 
 // --- 状态管理 ---
+const ABORT_SIGNAL = Symbol('ABORT_SIGNAL');
+export const isCallingSubAI = ref(false); // 响应式状态，用于UI更新
+let subAiAbortController: AbortController | null = null;
+
 enum AutomationState {
   IDLE,
   RUNNING,
@@ -342,44 +346,54 @@ async function incrementExecutedCount() {
 /**
  * 调用副AI
  */
-async function callSubAI(): Promise<string | null> {
-  showToast('info', '正在调用副AI...');
-  const lastMessageId = await getLastMessageId();
-  const allMessages = getChatMessages(`0-${lastMessageId}`); // 获取所有消息
-  if (!allMessages || allMessages.length === 0) {
-    showToast('error', '无法获取聊天记录', true);
-    return null;
-  }
-
-  // 准备提示词和聊天记录
-  const finalMessages: { role: string; content: string }[] = [];
-  const messagesForSubAI = allMessages.filter(msg => msg.role !== 'system');
-  const processedChatMessages = messagesForSubAI.map(msg => {
-    const content = applyRegexRules(msg.message, settings.value.contextRegexRules);
-    return { role: msg.role, content };
+async function callSubAI(): Promise<string | null | typeof ABORT_SIGNAL> {
+  const toastElement = toastr.info('正在向副AI发送消息...', undefined, {
+    timeOut: 0, // 不会自动消失
+    extendedTimeOut: 0,
+    closeButton: false,
+    tapToDismiss: false,
   });
 
-  for (const entry of activePromptSet.value.promptEntries) {
-    if (entry.is_chat_history) {
-      finalMessages.push(...processedChatMessages);
-    } else if (entry.enabled && entry.content) {
-      finalMessages.push({ role: entry.role, content: entry.content });
-    }
-  }
-
-  const body = {
-    model: settings.value.model,
-    messages: finalMessages,
-    temperature: settings.value.temperature,
-    top_p: settings.value.top_p,
-    top_k: settings.value.top_k,
-    max_tokens: settings.value.max_tokens,
-  };
-
-  console.log('[AutoRunner] 发送给副AI的完整信息:', body);
-  showToast('info', '完整的请求信息已打印到控制台 (F12)。');
+  isCallingSubAI.value = true;
+  subAiAbortController = new AbortController();
 
   try {
+    const lastMessageId = await getLastMessageId();
+    const allMessages = getChatMessages(`0-${lastMessageId}`);
+    if (!allMessages || allMessages.length === 0) {
+      showToast('error', '无法获取聊天记录', true);
+      return null;
+    }
+
+    const finalMessages: { role: string; content: string }[] = [];
+    const messagesForSubAI = allMessages.filter(msg => msg.role !== 'system');
+    const processedChatMessages = messagesForSubAI.map(msg => {
+      const content = applyRegexRules(msg.message, settings.value.contextRegexRules);
+      return { role: msg.role, content };
+    });
+
+    for (const entry of activePromptSet.value.promptEntries) {
+      if (entry.is_chat_history) {
+        finalMessages.push(...processedChatMessages);
+      } else if (entry.enabled && entry.content) {
+        finalMessages.push({ role: entry.role, content: entry.content });
+      }
+    }
+
+    const body = {
+      model: settings.value.model,
+      messages: finalMessages,
+      temperature: settings.value.temperature,
+      top_p: settings.value.top_p,
+      top_k: settings.value.top_k,
+      max_tokens: settings.value.max_tokens,
+    };
+
+    console.log('[AutoRunner] 发送给副AI的完整信息:', body);
+    if (!settings.value.conciseNotifications) {
+      showToast('info', '完整的请求信息已打印到控制台 (F12)。');
+    }
+
     const response = await fetch(`${settings.value.apiUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -387,6 +401,7 @@ async function callSubAI(): Promise<string | null> {
         Authorization: `Bearer ${settings.value.apiKey}`,
       },
       body: JSON.stringify(body),
+      signal: subAiAbortController.signal,
     });
 
     if (!response.ok) {
@@ -401,9 +416,20 @@ async function callSubAI(): Promise<string | null> {
     showToast('success', '副AI响应成功');
     return reply;
   } catch (error) {
-    console.error('调用副AI时出错:', error);
-    showToast('error', `调用副AI失败: ${(error as Error).message}`, true);
+    if ((error as Error).name === 'AbortError') {
+      showToast('warning', '已中止向副AI发送消息。', true);
+      return ABORT_SIGNAL;
+    } else {
+      console.error('调用副AI时出错:', error);
+      showToast('error', `调用副AI失败: ${(error as Error).message}`, true);
+    }
     return null;
+  } finally {
+    if (toastElement) {
+      toastr.remove(toastElement);
+    }
+    isCallingSubAI.value = false;
+    subAiAbortController = null;
   }
 }
 
@@ -651,10 +677,20 @@ async function runAutomation(isFirstRun = false) {
       let subAiReply: string | null = null;
       let subAiRetryCount = 0;
       while (subAiRetryCount <= settings.value.maxRetries) {
-        subAiReply = await callSubAI();
-        if (subAiReply) {
+        const result = await callSubAI();
+
+        if (result === ABORT_SIGNAL) {
+          // 用户中止了操作，停止整个自动化流程
+          stopAutomation({ skipFinalProcessing: true });
+          return;
+        }
+
+        if (result) {
+          subAiReply = result;
           break; // 成功获取回复，跳出循环
         }
+
+        // result 为 null，表示普通失败，进行重试
         subAiRetryCount++;
         if (subAiRetryCount > settings.value.maxRetries) {
           showToast('error', `调用副AI已达到最大重试次数 (${settings.value.maxRetries})，自动化已停止。`, true);
@@ -666,9 +702,8 @@ async function runAutomation(isFirstRun = false) {
       }
 
       if (!subAiReply) {
-        // 理论上不会执行到这里，因为上面的循环会return
-        showToast('error', '未能从副AI获取回复，自动化已停止。', true);
-        stopAutomation({ skipFinalProcessing: true });
+        // 如果循环结束仍未获得回复（因为中止或重试次数耗尽），则直接返回。
+        // 相关的停止逻辑已在循环内部处理。
         return;
       }
 
@@ -780,6 +815,7 @@ export async function stopAutomation(options: { skipFinalProcessing?: boolean } 
   eventRemoveListener(tavern_events.GENERATION_STOPPED, forceStop);
 
   // 尝试停止任何正在进行的生成
+  abortSubAICall(); // 中止可能在运行的副AI调用
   triggerSlash('/stop');
 
   // 如果是因错误而停止，则跳过最终处理
@@ -824,6 +860,16 @@ export async function stopAutomation(options: { skipFinalProcessing?: boolean } 
 }
 
 /**
+ * 中止正在进行的副AI调用
+ */
+export function abortSubAICall() {
+  if (subAiAbortController) {
+    subAiAbortController.abort();
+    console.log('[AutoRunner] Abort signal sent to sub AI call.');
+  }
+}
+
+/**
  * 脚本加载时执行
  */
 export function start() {
@@ -833,6 +879,7 @@ export function start() {
   // 将核心控制函数暴露到全局，供其他脚本使用
   initializeGlobal('AutoRunnerCore', {
     toggleTrulyAutomatedMode,
+    abortSubAICall,
   });
 }
 
