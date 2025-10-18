@@ -158,7 +158,8 @@ watch(
     // 使用防抖避免过于频繁的写入
     _.debounce(
       () => {
-        replaceVariables(newSettings, { type: 'script', script_id: getScriptId() });
+        // 关键修复：在保存前深度克隆，移除Vue的Proxy，防止数据损坏
+        replaceVariables(_.cloneDeep(newSettings), { type: 'script', script_id: getScriptId() });
       },
       500,
       { leading: false, trailing: true },
