@@ -1,12 +1,15 @@
-import { start, stop } from './core';
+import { start, stop, refreshSettings } from './core';
 import { initPanel, destroyPanel } from './panel';
 
-$(() => {
-  // 初始化设置面板
+$(async () => {
+  // 1. 首先，加载所有设置
+  await refreshSettings();
+
+  // 2. 然后，基于加载的设置初始化UI
   initPanel();
 
-  // 启动核心自动化逻辑 (注释掉，因为现在由手动按钮控制)
-  // start();
+  // 3. 最后，启动核心逻辑（它会监听按钮事件）
+  start();
 });
 
 $(window).on('pagehide', () => {

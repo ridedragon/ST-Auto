@@ -214,7 +214,7 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 /**
  * 获取最新的设置，并处理旧数据迁移
  */
-async function refreshSettings() {
+export async function refreshSettings() {
   // 1. 加载原始数据
   const savedSettingsRaw = getVariables({ type: 'script', script_id: getScriptId() }) || {};
   // 2. 关键修复：使用JSON序列化来彻底净化对象，移除之前版本可能存入的Proxy
@@ -795,8 +795,6 @@ export function start() {
       startAutomation();
     }
   });
-  // 初始化设置
-  refreshSettings();
 
   // 将核心控制函数暴露到全局，供其他脚本使用
   initializeGlobal('AutoRunnerCore', {
