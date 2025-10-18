@@ -495,7 +495,7 @@ async function startAutomation() {
 /**
  * 停止全自动运行
  */
-function stopAutomation() {
+async function stopAutomation() {
   if (state === AutomationState.IDLE) return;
 
   toastr.info('全自动运行已停止。');
@@ -507,6 +507,26 @@ function stopAutomation() {
 
   // 尝试停止任何正在进行的生成
   triggerSlash('/stop');
+
+  // 最终处理：确保最后一条AI消息也被处理
+  toastr.info('正在对最后生成的消息执行最终处理...');
+  await delay(1000); // 等待消息渲染稳定
+
+  const lastMessage = (getChatMessages(-1) || [])[0];
+  if (lastMessage && lastMessage.role === 'assistant') {
+    // 强制执行最终处理，绕过豁免计数
+    if (settings.exemptionCount > 0) {
+      internalExemptionCounter = settings.exemptionCount;
+    }
+    const processSuccess = await triggerSscAndProcess();
+    if (processSuccess) {
+      toastr.success('最终处理完成，脚本已彻底结束。');
+    } else {
+      toastr.warning('最终处理被用户取消，脚本已彻底结束。');
+    }
+  } else {
+    toastr.info('没有需要最终处理的AI消息，脚本已结束。');
+  }
 }
 
 /**
