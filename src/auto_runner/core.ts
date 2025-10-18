@@ -724,8 +724,22 @@ function forceStop() {
 /**
  * 启动全自动运行
  */
+// The handler for the button click
+function onRunButtonClicked() {
+  if (state === AutomationState.RUNNING) {
+    stopAutomation();
+  } else {
+    startAutomation();
+  }
+}
+
 async function startAutomation() {
   if (state === AutomationState.RUNNING) return;
+
+  if (!settings.value.enabled) {
+    showToast('warning', '脚本未启用，请先勾选“启用脚本”。', true);
+    return;
+  }
 
   // 1. 增加延迟，等待酒馆环境稳定
   await delay(1000);
@@ -753,7 +767,7 @@ async function startAutomation() {
 /**
  * 停止全自动运行
  */
-async function stopAutomation(options: { skipFinalProcessing?: boolean } = {}) {
+export async function stopAutomation(options: { skipFinalProcessing?: boolean } = {}) {
   if (state === AutomationState.IDLE) return;
 
   const stopMessage = options.skipFinalProcessing ? '全自动运行已因错误或用户操作而终止。' : '全自动运行已停止。';
@@ -814,13 +828,7 @@ async function stopAutomation(options: { skipFinalProcessing?: boolean } = {}) {
  */
 export function start() {
   // 监听按钮点击事件
-  eventOn(getButtonEvent('全自动运行'), () => {
-    if (state === AutomationState.RUNNING) {
-      stopAutomation();
-    } else {
-      startAutomation();
-    }
-  });
+  eventOn(getButtonEvent('全自动运行'), onRunButtonClicked);
 
   // 将核心控制函数暴露到全局，供其他脚本使用
   initializeGlobal('AutoRunnerCore', {
@@ -833,5 +841,5 @@ export function start() {
  */
 export function stop() {
   stopAutomation();
-  eventRemoveListener(getButtonEvent('全自动运行'), startAutomation);
+  eventRemoveListener(getButtonEvent('全自动运行'), onRunButtonClicked);
 }

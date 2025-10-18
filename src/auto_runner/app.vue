@@ -192,8 +192,7 @@ import { RegexRuleSchema } from './types';
 import {
   settings,
   activePromptSet,
-  start,
-  stop,
+  stopAutomation,
   addNewPromptSet,
   renameActivePromptSet,
   deleteActivePromptSet,
@@ -209,11 +208,9 @@ const models = ref<string[]>([]);
 watch(
   () => settings.value.enabled,
   (newValue, oldValue) => {
-    if (newValue === true && oldValue === false) {
-      settings.value.executedCount = 0;
-      start();
-    } else if (newValue === false && oldValue === true) {
-      stop();
+    if (newValue === false && oldValue === true) {
+      // 如果脚本是从启用状态变为禁用状态，则停止任何正在运行的自动化
+      stopAutomation();
     }
   },
 );
