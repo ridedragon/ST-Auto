@@ -24,9 +24,17 @@
               {{ set.name }}
             </option>
           </select>
-          <button class="menu_button" @click="addNewPromptSet">新建</button>
-          <button class="menu_button" @click="renameActivePromptSet">重命名</button>
-          <button class="menu_button danger" @click="deleteActivePromptSet">删除</button>
+          <div class="set-buttons">
+            <button class="menu_button icon-button" title="新建配置" @click="addNewPromptSet">
+              <i class="fa-solid fa-plus"></i>
+            </button>
+            <button class="menu_button icon-button" title="重命名当前配置" @click="renameActivePromptSet">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            <button class="menu_button icon-button danger" title="删除当前配置" @click="deleteActivePromptSet">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
         </div>
         <div class="set-manager" style="margin-top: 10px">
           <button class="menu_button wide-button" @click="importPromptSets">导入配置</button>
@@ -36,7 +44,10 @@
 
       <hr />
 
-      <PromptEditor :entries="activePromptSet.promptEntries" />
+      <PromptEditor
+        :entries="activePromptSet.promptEntries"
+        @update:entries="updateEntries"
+      />
 
       <hr />
 
@@ -186,6 +197,7 @@ import {
   exportActivePromptSet,
 } from './core';
 import PromptEditor from './PromptEditor.vue';
+import type { PromptEntry } from './types';
 
 const models = ref<string[]>([]);
 
@@ -208,6 +220,16 @@ onMounted(() => {
     models.value.push(settings.value.model);
   }
 });
+
+// 更新提示词条目
+const updateEntries = (newEntries: PromptEntry[]) => {
+  if (activePromptSet.value) {
+    const setToUpdate = settings.value.promptSets.find(p => p.id === activePromptSet.value.id);
+    if (setToUpdate) {
+      setToUpdate.promptEntries = newEntries;
+    }
+  }
+};
 
 // 添加新规则
 const addRule = (type: 'context' | 'subAi') => {
@@ -317,5 +339,16 @@ input[type='range'] {
 
 .set-select {
   flex-grow: 1;
+}
+
+.set-buttons {
+  display: flex;
+  gap: 5px;
+}
+
+.icon-button {
+  padding: 6px 10px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 </style>

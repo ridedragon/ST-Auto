@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { z } from 'zod';
-import { SettingsSchema, type Settings, type RegexRule, PromptSetSchema } from './types';
+import { SettingsSchema, type Settings, type RegexRule, PromptSetSchema, PromptEntrySchema } from './types';
 import { ref, computed, watch } from 'vue';
 
 // --- 状态管理 ---
@@ -35,9 +35,18 @@ export function addNewPromptSet() {
   const newName = window.prompt('请输入新配置的名称：', `新配置 ${settings.value.promptSets.length + 1}`);
   if (!newName) return;
 
+  const chatHistoryEntry = PromptEntrySchema.parse({
+    name: '聊天记录',
+    content: '此条目是聊天记录的占位符',
+    enabled: true,
+    editing: false,
+    role: 'user',
+    is_chat_history: true,
+  });
+
   const newSet = PromptSetSchema.parse({
     name: newName,
-    promptEntries: [],
+    promptEntries: [chatHistoryEntry],
   });
   settings.value.promptSets.push(newSet);
   settings.value.activePromptSetId = newSet.id;
@@ -233,14 +242,39 @@ async function refreshSettings() {
       toastr.success('设置迁移完成！');
     }
 
-    // --- 确保至少有一个配置集存在 ---
+    // --- 确保至少有一个配置集存在，并且每个配置集都有聊天记录条目 ---
     if (!savedSettings.promptSets || savedSettings.promptSets.length === 0) {
+      const chatHistoryEntry = PromptEntrySchema.parse({
+        name: '聊天记录',
+        content: '此条目是聊天记录的占位符',
+        enabled: true,
+        editing: false,
+        role: 'user',
+        is_chat_history: true,
+      });
       const defaultSet = PromptSetSchema.parse({
         name: '默认配置',
-        promptEntries: [],
+        promptEntries: [chatHistoryEntry],
       });
       savedSettings.promptSets = [defaultSet];
       savedSettings.activePromptSetId = defaultSet.id;
+    } else {
+      // 检查每个已存在的配置集
+      for (const pSet of savedSettings.promptSets) {
+        const hasChatHistory = pSet.promptEntries.some((e: any) => e.is_chat_history);
+        if (!hasChatHistory) {
+          const chatHistoryEntry = PromptEntrySchema.parse({
+            name: '聊天记录',
+            content: '此条目是聊天记录的占位符',
+            enabled: true,
+            editing: false,
+            role: 'user',
+            is_chat_history: true,
+          });
+          pSet.promptEntries.unshift(chatHistoryEntry); // 加到最前面
+          toastr.info(`为配置 "${pSet.name}" 补全了缺失的“聊天记录”条目。`);
+        }
+      }
     }
 
     // --- 确保 activePromptSetId 有效 ---
