@@ -1,18 +1,7 @@
 import _ from 'lodash';
 import { z } from 'zod';
-import { SettingsSchema, type Settings, type RegexRule } from './types';
-
-// --- 类型定义 ---
-const PromptEntrySchema = z.object({
-  name: z.string(),
-  content: z.string(),
-  enabled: z.boolean(),
-  editing: z.boolean(),
-  role: z.enum(['user', 'system', 'assistant']),
-});
-
-const PromptsSchema = z.array(PromptEntrySchema);
-type PromptEntry = z.infer<typeof PromptEntrySchema>;
+import { SettingsSchema, type Settings, type RegexRule, PromptSetSchema } from './types';
+import { ref, computed, watch } from 'vue';
 
 // --- 状态管理 ---
 enum AutomationState {
@@ -23,10 +12,151 @@ enum AutomationState {
 }
 
 let state: AutomationState = AutomationState.IDLE;
-let settings: Settings = SettingsSchema.parse({});
+export const settings = ref<Settings>(SettingsSchema.parse({}));
 let retryCount = 0;
 let internalExemptionCounter = 0; // 新增的、只在内存中的豁免计数器
 let isTrulyAutomatedMode = false; // “真·自动化”模式开关
+
+// --- 响应式数据 ---
+
+// 当前激活的提示词配置集
+export const activePromptSet = computed(() => {
+  const activeSet = settings.value.promptSets.find(p => p.id === settings.value.activePromptSetId);
+  if (activeSet) {
+    return activeSet;
+  }
+  // 如果找不到，或者没有激活的，返回一个默认的空集，避免UI崩溃
+  return PromptSetSchema.parse({ name: '（无有效配置）', promptEntries: [] });
+});
+
+// --- 配置集管理函数 ---
+
+export function addNewPromptSet() {
+  const newName = window.prompt('请输入新配置的名称：', `新配置 ${settings.value.promptSets.length + 1}`);
+  if (!newName) return;
+
+  const newSet = PromptSetSchema.parse({
+    name: newName,
+    promptEntries: [],
+  });
+  settings.value.promptSets.push(newSet);
+  settings.value.activePromptSetId = newSet.id;
+  toastr.success(`已创建新配置 "${newName}"`);
+}
+
+export function renameActivePromptSet() {
+  const activeSet = activePromptSet.value;
+  if (!activeSet || activeSet.name === '（无有效配置）') return;
+
+  const newName = window.prompt('请输入新的名称：', activeSet.name);
+  if (newName && newName !== activeSet.name) {
+    const setToUpdate = settings.value.promptSets.find(p => p.id === activeSet.id);
+    if (setToUpdate) {
+      setToUpdate.name = newName;
+      toastr.success('配置已重命名');
+    }
+  }
+}
+
+export function deleteActivePromptSet() {
+  if (settings.value.promptSets.length <= 1) {
+    toastr.error('无法删除最后一个配置集');
+    return;
+  }
+
+  const activeSet = activePromptSet.value;
+  if (!activeSet || !window.confirm(`确定要删除配置 "${activeSet.name}" 吗？此操作不可撤销。`)) {
+    return;
+  }
+
+  const index = settings.value.promptSets.findIndex(p => p.id === activeSet.id);
+  if (index > -1) {
+    settings.value.promptSets.splice(index, 1);
+    // 激活前一个或第一个
+    settings.value.activePromptSetId = settings.value.promptSets[Math.max(0, index - 1)]?.id || null;
+    toastr.success(`配置 "${activeSet.name}" 已删除`);
+  }
+}
+
+export function exportActivePromptSet() {
+  const activeSet = activePromptSet.value;
+  if (!activeSet) return;
+
+  const jsonString = JSON.stringify(activeSet, null, 2);
+  const blob = new Blob([jsonString], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${activeSet.name}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toastr.success('当前配置已导出');
+}
+
+export function importPromptSets() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = async e => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    const text = await file.text();
+    try {
+      const data = JSON.parse(text);
+      const setsToImport: any[] = Array.isArray(data) ? data : [data];
+
+      let importedCount = 0;
+      for (const setData of setsToImport) {
+        // 验证导入的数据是否符合格式
+        const parsed = PromptSetSchema.safeParse(setData);
+        if (parsed.success) {
+          // 检查名称是否已存在
+          if (settings.value.promptSets.some(p => p.name === parsed.data.name)) {
+            if (!window.confirm(`已存在名为 "${parsed.data.name}" 的配置。要覆盖它吗？`)) {
+              continue; // 跳过这个
+            }
+            // 删除旧的
+            const oldIndex = settings.value.promptSets.findIndex(p => p.name === parsed.data.name);
+            if (oldIndex > -1) settings.value.promptSets.splice(oldIndex, 1);
+          }
+          // 确保ID唯一
+          parsed.data.id = `set_${Date.now()}_${Math.random()}`;
+          settings.value.promptSets.push(parsed.data);
+          importedCount++;
+        } else {
+          console.error('导入的数据格式无效:', parsed.error);
+          toastr.error('一个或多个导入的配置格式无效，详情请查看控制台。');
+        }
+      }
+      if (importedCount > 0) {
+        toastr.success(`成功导入 ${importedCount} 个配置。`);
+      }
+    } catch (error) {
+      console.error('导入失败:', error);
+      toastr.error('导入文件失败，请确保是有效的JSON文件。');
+    }
+  };
+  input.click();
+}
+
+// 监听设置变化并自动保存
+watch(
+  settings,
+  newSettings => {
+    // 使用防抖避免过于频繁的写入
+    _.debounce(
+      () => {
+        replaceVariables(newSettings, { type: 'script', script_id: getScriptId() });
+      },
+      500,
+      { leading: false, trailing: true },
+    )();
+  },
+  { deep: true },
+);
 
 // --- 辅助函数 ---
 
@@ -72,16 +202,58 @@ function applyRegexRules(text: string, rules: readonly RegexRule[]): string {
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * 获取最新的设置
+ * 获取最新的设置，并处理旧数据迁移
  */
 async function refreshSettings() {
   try {
     const savedSettings = getVariables({ type: 'script', script_id: getScriptId() }) || {};
-    settings = SettingsSchema.parse(_.merge(SettingsSchema.parse({}), savedSettings));
+
+    // 定义一个临时的旧版设置schema用于安全检查
+    const OldSettingsSchema = z.object({
+      promptEntries: z.array(z.any()).optional(),
+      promptSets: z.array(z.any()).optional(),
+    });
+    const parsedOld = OldSettingsSchema.safeParse(savedSettings);
+
+    // --- 数据迁移逻辑 ---
+    if (parsedOld.success && parsedOld.data.promptEntries) {
+      toastr.info('检测到旧版设置，正在迁移...');
+      const newSet = PromptSetSchema.parse({
+        name: '默认配置',
+        promptEntries: parsedOld.data.promptEntries,
+      });
+
+      delete (savedSettings as any).promptEntries; // 删除旧字段
+
+      if (!savedSettings.promptSets) {
+        savedSettings.promptSets = [];
+      }
+      (savedSettings.promptSets as any[]).push(newSet);
+      (savedSettings as any).activePromptSetId = newSet.id;
+      toastr.success('设置迁移完成！');
+    }
+
+    // --- 确保至少有一个配置集存在 ---
+    if (!savedSettings.promptSets || savedSettings.promptSets.length === 0) {
+      const defaultSet = PromptSetSchema.parse({
+        name: '默认配置',
+        promptEntries: [],
+      });
+      savedSettings.promptSets = [defaultSet];
+      savedSettings.activePromptSetId = defaultSet.id;
+    }
+
+    // --- 确保 activePromptSetId 有效 ---
+    const activeSetExists = savedSettings.promptSets.some((p: any) => p.id === savedSettings.activePromptSetId);
+    if (!activeSetExists) {
+      savedSettings.activePromptSetId = savedSettings.promptSets[0]?.id || null;
+    }
+
+    settings.value = SettingsSchema.parse(_.merge(SettingsSchema.parse({}), savedSettings));
   } catch (error) {
-    console.error('[AutoRunner] 加载设置失败:', error);
+    console.error('[AutoRunner] 加载或解析设置失败:', error);
     toastr.error('加载设置失败，将使用默认设置。');
-    settings = SettingsSchema.parse({});
+    settings.value = SettingsSchema.parse({});
   }
 }
 
@@ -92,7 +264,7 @@ function shouldStop(): boolean {
   if (state !== AutomationState.RUNNING) {
     return true;
   }
-  if (settings.executedCount >= settings.totalReplies) {
+  if (settings.value.executedCount >= settings.value.totalReplies) {
     toastr.info('已达到总回复次数，全自动运行结束。');
     return true;
   }
@@ -103,9 +275,8 @@ function shouldStop(): boolean {
  * 增加执行次数
  */
 async function incrementExecutedCount() {
-  settings.executedCount++;
-  // 直接修改并保存，让 vue 响应
-  await replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
+  settings.value.executedCount++;
+  // 保存操作已通过 watch a
 }
 
 /**
@@ -124,11 +295,11 @@ async function callSubAI(): Promise<string | null> {
   const finalMessages: { role: string; content: string }[] = [];
   const messagesForSubAI = allMessages.filter(msg => msg.role !== 'system');
   const processedChatMessages = messagesForSubAI.map(msg => {
-    const content = applyRegexRules(msg.message, settings.contextRegexRules);
+    const content = applyRegexRules(msg.message, settings.value.contextRegexRules);
     return { role: msg.role, content };
   });
 
-  for (const entry of settings.promptEntries) {
+  for (const entry of activePromptSet.value.promptEntries) {
     if (entry.is_chat_history) {
       finalMessages.push(...processedChatMessages);
     } else if (entry.enabled && entry.content) {
@@ -137,23 +308,23 @@ async function callSubAI(): Promise<string | null> {
   }
 
   const body = {
-    model: settings.model,
+    model: settings.value.model,
     messages: finalMessages,
-    temperature: settings.temperature,
-    top_p: settings.top_p,
-    top_k: settings.top_k,
-    max_tokens: settings.max_tokens,
+    temperature: settings.value.temperature,
+    top_p: settings.value.top_p,
+    top_k: settings.value.top_k,
+    max_tokens: settings.value.max_tokens,
   };
 
   console.log('[AutoRunner] 发送给副AI的完整信息:', body);
   toastr.info('完整的请求信息已打印到控制台 (F12)。');
 
   try {
-    const response = await fetch(`${settings.apiUrl}/chat/completions`, {
+    const response = await fetch(`${settings.value.apiUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${settings.apiKey}`,
+        Authorization: `Bearer ${settings.value.apiKey}`,
       },
       body: JSON.stringify(body),
     });
@@ -181,7 +352,7 @@ async function callSubAI(): Promise<string | null> {
  * @param reply 副AI的原始回复
  */
 function processSubAiResponse(reply: string): string {
-  return applyRegexRules(reply, settings.subAiRegexRules);
+  return applyRegexRules(reply, settings.value.subAiRegexRules);
 }
 
 /**
@@ -253,9 +424,9 @@ export function toggleTrulyAutomatedMode(enable: boolean) {
 
 async function triggerSscAndProcess(): Promise<boolean> {
   // 使用新的内部计数器进行豁免判断
-  if (internalExemptionCounter < settings.exemptionCount) {
+  if (internalExemptionCounter < settings.value.exemptionCount) {
     toastr.info(
-      `豁免计数 (${internalExemptionCounter}) 小于豁免次数 (${settings.exemptionCount})，跳过SSC和一键处理。`,
+      `豁免计数 (${internalExemptionCounter}) 小于豁免次数 (${settings.value.exemptionCount})，跳过SSC和一键处理。`,
     );
     internalExemptionCounter++; // 增加内部豁免计数
     return true; // 返回 true 以继续主流程
@@ -418,18 +589,18 @@ async function runAutomation(isFirstRun = false) {
       // 步骤 3: 发送给副AI，并包含重试逻辑
       let subAiReply: string | null = null;
       let subAiRetryCount = 0;
-      while (subAiRetryCount <= settings.maxRetries) {
+      while (subAiRetryCount <= settings.value.maxRetries) {
         subAiReply = await callSubAI();
         if (subAiReply) {
           break; // 成功获取回复，跳出循环
         }
         subAiRetryCount++;
-        if (subAiRetryCount > settings.maxRetries) {
-          toastr.error(`调用副AI已达到最大重试次数 (${settings.maxRetries})，自动化已停止。`);
+        if (subAiRetryCount > settings.value.maxRetries) {
+          toastr.error(`调用副AI已达到最大重试次数 (${settings.value.maxRetries})，自动化已停止。`);
           stopAutomation();
           return;
         }
-        toastr.warning(`调用副AI失败，将在5秒后重试 (${subAiRetryCount}/${settings.maxRetries})`);
+        toastr.warning(`调用副AI失败，将在5秒后重试 (${subAiRetryCount}/${settings.value.maxRetries})`);
         await delay(5000);
       }
 
@@ -504,8 +675,8 @@ async function startAutomation() {
   internalExemptionCounter = 0; // 重置内部豁免计数器
 
   // 3. 在内存中重置总执行次数，并异步保存它以更新UI（无需等待）
-  settings.executedCount = 0;
-  replaceVariables(_.cloneDeep(settings), { type: 'script', script_id: getScriptId() });
+  settings.value.executedCount = 0;
+  // 保存操作已通过 watch a
 
   // 4. 绑定事件
   eventOn(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
@@ -544,8 +715,8 @@ async function stopAutomation() {
   const lastMessage = (getChatMessages(-1) || [])[0];
   if (lastMessage && lastMessage.role === 'assistant') {
     // 强制执行最终处理，绕过豁免计数
-    if (settings.exemptionCount > 0) {
-      internalExemptionCounter = settings.exemptionCount;
+    if (settings.value.exemptionCount > 0) {
+      internalExemptionCounter = settings.value.exemptionCount;
     }
     const processSuccess = await triggerSscAndProcess();
     if (processSuccess) {

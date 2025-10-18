@@ -23,9 +23,18 @@ export const PromptEntrySchema = z.object({
 
 export type PromptEntry = z.infer<typeof PromptEntrySchema>;
 
+// A set of prompts
+export const PromptSetSchema = z.object({
+  id: z.string().default(() => `set_${Date.now()}_${Math.random()}`),
+  name: z.string(),
+  promptEntries: z.array(PromptEntrySchema),
+});
+export type PromptSet = z.infer<typeof PromptSetSchema>;
+
 export const SettingsSchema = z.object({
   enabled: z.boolean().default(false),
-  promptEntries: z.array(PromptEntrySchema).default([]),
+  promptSets: z.array(PromptSetSchema).default([]),
+  activePromptSetId: z.string().nullable().default(null),
   apiUrl: z.preprocess(val => val ?? '', z.string()),
   apiKey: z.preprocess(val => val ?? '', z.string()),
   model: z.preprocess(val => val ?? '', z.string()),

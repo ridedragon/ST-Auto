@@ -15,7 +15,28 @@
 
       <hr />
 
-      <PromptEditor :entries="settings.promptEntries" @update:entries="updatePromptEntries" />
+      <!-- 配置集管理 -->
+      <div class="flex-container flexFlowColumn">
+        <div><strong>提示词配置集</strong></div>
+        <div class="set-manager">
+          <select v-model="settings.activePromptSetId" class="text_pole set-select">
+            <option v-for="set in settings.promptSets" :key="set.id" :value="set.id">
+              {{ set.name }}
+            </option>
+          </select>
+          <button class="menu_button" @click="addNewPromptSet">新建</button>
+          <button class="menu_button" @click="renameActivePromptSet">重命名</button>
+          <button class="menu_button danger" @click="deleteActivePromptSet">删除</button>
+        </div>
+        <div class="set-manager" style="margin-top: 10px">
+          <button class="menu_button wide-button" @click="importPromptSets">导入配置</button>
+          <button class="menu_button wide-button" @click="exportActivePromptSet">导出当前配置</button>
+        </div>
+      </div>
+
+      <hr />
+
+      <PromptEditor :entries="activePromptSet.promptEntries" />
 
       <hr />
 
@@ -150,64 +171,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import _ from 'lodash';
-import { SettingsSchema, RegexRuleSchema, type Settings } from './types';
-import { start, stop } from './core';
+import { RegexRuleSchema } from './types';
+import {
+  settings,
+  activePromptSet,
+  start,
+  stop,
+  addNewPromptSet,
+  renameActivePromptSet,
+  deleteActivePromptSet,
+  importPromptSets,
+  exportActivePromptSet,
+} from './core';
 import PromptEditor from './PromptEditor.vue';
 
-const settings = ref<Settings>(SettingsSchema.parse({}));
 const models = ref<string[]>([]);
-
-// 加载设置
-onMounted(async () => {
-  try {
-    const savedSettings = getVariables({ type: 'script', script_id: getScriptId() }) || {};
-    const defaultSettings = SettingsSchema.parse({});
-    const mergedSettings = _.merge(defaultSettings, savedSettings);
-    const parsedSettings = SettingsSchema.parse(mergedSettings);
-
-    // 确保聊天记录占位符存在
-    if (!parsedSettings.promptEntries.some(p => p.is_chat_history)) {
-      parsedSettings.promptEntries.push({
-        id: 'chat_history_placeholder',
-        name: '聊天记录',
-        content: '',
-        enabled: true,
-        editing: false,
-        role: 'system',
-        is_chat_history: true,
-      });
-    }
-
-    settings.value = parsedSettings;
-
-    if (settings.value.model) {
-      models.value.push(settings.value.model);
-    }
-  } catch (error) {
-    console.error('加载设置失败:', error);
-    settings.value = SettingsSchema.parse({});
-  }
-});
-
-// 监视设置变化并自动保存
-watch(
-  settings,
-  _.debounce(async newSettings => {
-    try {
-      const validatedSettings = SettingsSchema.parse(newSettings);
-      await replaceVariables(_.cloneDeep(validatedSettings), { type: 'script', script_id: getScriptId() });
-    } catch (e: any) {
-      console.error('自动保存设置失败:', e);
-    }
-  }, 500), // 增加防抖，避免过于频繁的保存
-  { deep: true },
-);
-
-const updatePromptEntries = (newEntries: any) => {
-  settings.value.promptEntries = newEntries;
-};
 
 // 监视脚本启用/禁用状态
 watch(
@@ -221,6 +201,13 @@ watch(
     }
   },
 );
+
+// 当组件挂载时，如果已有模型，则显示
+onMounted(() => {
+  if (settings.value.model && !models.value.includes(settings.value.model)) {
+    models.value.push(settings.value.model);
+  }
+});
 
 // 添加新规则
 const addRule = (type: 'context' | 'subAi') => {
@@ -322,4 +309,13 @@ input[type='range'] {
   gap: 5px;
 }
 
+.set-manager {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.set-select {
+  flex-grow: 1;
+}
 </style>
