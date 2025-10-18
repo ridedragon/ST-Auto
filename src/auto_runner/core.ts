@@ -524,6 +524,12 @@ async function stopAutomation() {
   toastr.info('全自动运行已停止。');
   state = AutomationState.IDLE;
 
+  // 当任何自动化停止时，都自动关闭“真·自动化”模式，防止状态污染
+  if (isTrulyAutomatedMode) {
+    isTrulyAutomatedMode = false;
+    toastr.info('“真·自动化”模式已随运行停止而关闭。');
+  }
+
   // 解绑事件
   eventRemoveListener(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
   eventRemoveListener(tavern_events.GENERATION_STOPPED, forceStop);
