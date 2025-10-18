@@ -13,152 +13,146 @@
         </label>
       </div>
 
-      <!-- 配置集管理 -->
-      <div class="collapsible-header" @click.stop="sections.promptSets = !sections.promptSets">
-        <strong>提示词配置集</strong>
-        <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.promptSets }]"></i>
+      <div class="section-wrapper">
+        <div class="section-header" @click="sections.promptSets = !sections.promptSets">
+          <strong>提示词配置集</strong>
+          <i :class="['fa-solid', 'fa-chevron-right', { 'is-rotated': sections.promptSets }]"></i>
+        </div>
+        <div v-show="sections.promptSets" class="section-content">
+          <div class="set-manager">
+            <select v-model="settings.activePromptSetId" class="text_pole set-select">
+              <option v-for="set in settings.promptSets" :key="set.id" :value="set.id">
+                {{ set.name }}
+              </option>
+            </select>
+            <div class="set-buttons">
+              <button class="menu_button icon-button" title="新建配置" @click="addNewPromptSet">
+                <i class="fa-solid fa-plus"></i>
+              </button>
+              <button class="menu_button icon-button" title="重命名当前配置" @click="renameActivePromptSet">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              <button class="menu_button icon-button danger" title="删除当前配置" @click="deleteActivePromptSet">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+          <div class="set-manager" style="margin-top: 10px">
+            <button class="menu_button wide-button" @click="importPromptSets">导入配置</button>
+            <button class="menu_button wide-button" @click="exportActivePromptSet">导出当前配置</button>
+          </div>
+          <hr style="margin: 15px 0;" />
+          <PromptEditor
+            :entries="activePromptSet.promptEntries"
+            @update:entries="updateEntries"
+          />
+        </div>
       </div>
-      <div v-show="sections.promptSets" class="collapsible-content">
-        <div class="set-manager">
-          <select v-model="settings.activePromptSetId" class="text_pole set-select">
-            <option v-for="set in settings.promptSets" :key="set.id" :value="set.id">
-              {{ set.name }}
-            </option>
+
+      <div class="section-wrapper">
+        <div class="section-header" @click="sections.contextRegex = !sections.contextRegex">
+          <strong>上下文正则处理</strong>
+          <i :class="['fa-solid', 'fa-chevron-right', { 'is-rotated': sections.contextRegex }]"></i>
+        </div>
+        <div v-show="sections.contextRegex" class="section-content">
+          <p class="description">在将聊天记录发送给副AI之前，按顺序应用以下规则。</p>
+          <div v-for="(rule, index) in settings.contextRegexRules" :key="rule.id" class="rule-item">
+            <div class="rule-header">
+              <input v-model="rule.enabled" type="checkbox" class="rule-toggle" />
+              <input v-model="rule.name" type="text" class="text_pole rule-name" placeholder="规则名称" />
+              <button class="menu_button" @click="removeRule('context', index)">删除</button>
+            </div>
+            <div class="rule-body">
+              <textarea v-model="rule.find" class="text_pole" placeholder="查找 (支持 /.../flags 格式)"></textarea>
+              <textarea v-model="rule.replace" class="text_pole" placeholder="替换为 (留空则为删除)"></textarea>
+            </div>
+          </div>
+          <button class="menu_button wide-button" @click="addRule('context')">添加上下文规则</button>
+        </div>
+      </div>
+
+      <div class="section-wrapper">
+        <div class="section-header" @click="sections.subAiRegex = !sections.subAiRegex">
+          <strong>副AI输出正则处理</strong>
+          <i :class="['fa-solid', 'fa-chevron-right', { 'is-rotated': sections.subAiRegex }]"></i>
+        </div>
+        <div v-show="sections.subAiRegex" class="section-content">
+          <p class="description">在收到副AI的回复后，按顺序应用以下规则。</p>
+          <div v-for="(rule, index) in settings.subAiRegexRules" :key="rule.id" class="rule-item">
+            <div class="rule-header">
+              <input v-model="rule.enabled" type="checkbox" class="rule-toggle" />
+              <input v-model="rule.name" type="text" class="text_pole rule-name" placeholder="规则名称" />
+              <button class="menu_button" @click="removeRule('subAi', index)">删除</button>
+            </div>
+            <div class="rule-body">
+              <textarea v-model="rule.find" class="text_pole" placeholder="查找 (支持 /.../flags 格式)"></textarea>
+              <textarea v-model="rule.replace" class="text_pole" placeholder="替换为 (留空则为删除)"></textarea>
+            </div>
+          </div>
+          <button class="menu_button wide-button" @click="addRule('subAi')">添加副AI输出规则</button>
+        </div>
+      </div>
+
+      <div class="section-wrapper">
+        <div class="section-header" @click="sections.apiSettings = !sections.apiSettings">
+          <strong>API 调用设置</strong>
+          <i :class="['fa-solid', 'fa-chevron-right', { 'is-rotated': sections.apiSettings }]"></i>
+        </div>
+        <div v-show="sections.apiSettings" class="section-content flex-container flexFlowColumn">
+          <label for="auto_runner_api_url">API 地址</label>
+          <input
+            id="auto_runner_api_url"
+            v-model="settings.apiUrl"
+            type="text"
+            class="text_pole"
+            placeholder="http://localhost:1234/v1"
+          />
+          <label for="auto_runner_api_key">API 密钥</label>
+          <input
+            id="auto_runner_api_key"
+            v-model="settings.apiKey"
+            type="password"
+            class="text_pole"
+            placeholder="留空表示无需密钥"
+          />
+          <div class="flex-container">
+            <button class="menu_button wide-button" @click="getModels">获取模型</button>
+          </div>
+          <label for="auto_runner_model">模型</label>
+          <select id="auto_runner_model" v-model="settings.model" class="text_pole">
+            <option v-if="!settings.model" value="">请先获取模型</option>
+            <option v-for="model in models" :key="model" :value="model">{{ model }}</option>
           </select>
-          <div class="set-buttons">
-            <button class="menu_button icon-button" title="新建配置" @click="addNewPromptSet">
-              <i class="fa-solid fa-plus"></i>
-            </button>
-            <button class="menu_button icon-button" title="重命名当前配置" @click="renameActivePromptSet">
-              <i class="fa-solid fa-pen-to-square"></i>
-            </button>
-            <button class="menu_button icon-button danger" title="删除当前配置" @click="deleteActivePromptSet">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </div>
+          <label for="auto_runner_temperature">Temperature: {{ settings.temperature }}</label>
+          <input
+            id="auto_runner_temperature"
+            v-model.number="settings.temperature"
+            type="range"
+            step="0.1"
+            min="0"
+            max="2"
+          />
+          <label for="auto_runner_top_p">Top P: {{ settings.top_p }}</label>
+          <input id="auto_runner_top_p" v-model.number="settings.top_p" type="range" step="0.05" min="0" max="1" />
+          <label for="auto_runner_top_k">Top K: {{ settings.top_k }}</label>
+          <input id="auto_runner_top_k" v-model.number="settings.top_k" type="range" step="1" min="0" max="100" />
+          <label for="auto_runner_max_tokens">Max Tokens: {{ settings.max_tokens }}</label>
+          <input
+            id="auto_runner_max_tokens"
+            v-model.number="settings.max_tokens"
+            type="number"
+            class="text_pole"
+            min="1"
+          />
         </div>
-        <div class="set-manager" style="margin-top: 10px">
-          <button class="menu_button wide-button" @click="importPromptSets">导入配置</button>
-          <button class="menu_button wide-button" @click="exportActivePromptSet">导出当前配置</button>
+      </div>
+
+      <div class="section-wrapper">
+        <div class="section-header" @click="sections.automationSettings = !sections.automationSettings">
+          <strong>自动化设置</strong>
+          <i :class="['fa-solid', 'fa-chevron-right', { 'is-rotated': sections.automationSettings }]"></i>
         </div>
-
-        <hr style="margin: 15px 0;" />
-
-        <PromptEditor
-          :entries="activePromptSet.promptEntries"
-          @update:entries="updateEntries"
-        />
-      </div>
-
-      <hr />
-
-      <!-- 上下文正则编辑器 -->
-      <div class="collapsible-header" @click.stop="sections.contextRegex = !sections.contextRegex">
-        <strong>上下文正则处理</strong>
-        <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.contextRegex }]"></i>
-      </div>
-      <div v-show="sections.contextRegex" class="collapsible-content">
-        <p class="description">在将聊天记录发送给副AI之前，按顺序应用以下规则。</p>
-        <div v-for="(rule, index) in settings.contextRegexRules" :key="rule.id" class="rule-item">
-          <div class="rule-header">
-            <input v-model="rule.enabled" type="checkbox" class="rule-toggle" />
-            <input v-model="rule.name" type="text" class="text_pole rule-name" placeholder="规则名称" />
-            <button class="menu_button" @click="removeRule('context', index)">删除</button>
-          </div>
-          <div class="rule-body">
-            <textarea v-model="rule.find" class="text_pole" placeholder="查找 (支持 /.../flags 格式)"></textarea>
-            <textarea v-model="rule.replace" class="text_pole" placeholder="替换为 (留空则为删除)"></textarea>
-          </div>
-        </div>
-        <button class="menu_button wide-button" @click="addRule('context')">添加上下文规则</button>
-      </div>
-
-      <hr />
-
-      <!-- 副AI输出正则编辑器 -->
-      <div class="collapsible-header" @click.stop="sections.subAiRegex = !sections.subAiRegex">
-        <strong>副AI输出正则处理</strong>
-        <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.subAiRegex }]"></i>
-      </div>
-      <div v-show="sections.subAiRegex" class="collapsible-content">
-        <p class="description">在收到副AI的回复后，按顺序应用以下规则。</p>
-        <div v-for="(rule, index) in settings.subAiRegexRules" :key="rule.id" class="rule-item">
-          <div class="rule-header">
-            <input v-model="rule.enabled" type="checkbox" class="rule-toggle" />
-            <input v-model="rule.name" type="text" class="text_pole rule-name" placeholder="规则名称" />
-            <button class="menu_button" @click="removeRule('subAi', index)">删除</button>
-          </div>
-          <div class="rule-body">
-            <textarea v-model="rule.find" class="text_pole" placeholder="查找 (支持 /.../flags 格式)"></textarea>
-            <textarea v-model="rule.replace" class="text_pole" placeholder="替换为 (留空则为删除)"></textarea>
-          </div>
-        </div>
-        <button class="menu_button wide-button" @click="addRule('subAi')">添加副AI输出规则</button>
-      </div>
-
-      <hr />
-
-      <!-- API 调用设置 -->
-      <div class="collapsible-header" @click.stop="sections.apiSettings = !sections.apiSettings">
-        <strong>API 调用设置</strong>
-        <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.apiSettings }]"></i>
-      </div>
-      <div v-show="sections.apiSettings" class="collapsible-content flex-container flexFlowColumn">
-        <label for="auto_runner_api_url">API 地址</label>
-        <input
-          id="auto_runner_api_url"
-          v-model="settings.apiUrl"
-          type="text"
-          class="text_pole"
-          placeholder="http://localhost:1234/v1"
-        />
-        <label for="auto_runner_api_key">API 密钥</label>
-        <input
-          id="auto_runner_api_key"
-          v-model="settings.apiKey"
-          type="password"
-          class="text_pole"
-          placeholder="留空表示无需密钥"
-        />
-        <div class="flex-container">
-          <button class="menu_button wide-button" @click="getModels">获取模型</button>
-        </div>
-        <label for="auto_runner_model">模型</label>
-        <select id="auto_runner_model" v-model="settings.model" class="text_pole">
-          <option v-if="!settings.model" value="">请先获取模型</option>
-          <option v-for="model in models" :key="model" :value="model">{{ model }}</option>
-        </select>
-        <label for="auto_runner_temperature">Temperature: {{ settings.temperature }}</label>
-        <input
-          id="auto_runner_temperature"
-          v-model.number="settings.temperature"
-          type="range"
-          step="0.1"
-          min="0"
-          max="2"
-        />
-        <label for="auto_runner_top_p">Top P: {{ settings.top_p }}</label>
-        <input id="auto_runner_top_p" v-model.number="settings.top_p" type="range" step="0.05" min="0" max="1" />
-        <label for="auto_runner_top_k">Top K: {{ settings.top_k }}</label>
-        <input id="auto_runner_top_k" v-model.number="settings.top_k" type="range" step="1" min="0" max="100" />
-        <label for="auto_runner_max_tokens">Max Tokens: {{ settings.max_tokens }}</label>
-        <input
-          id="auto_runner_max_tokens"
-          v-model.number="settings.max_tokens"
-          type="number"
-          class="text_pole"
-          min="1"
-        />
-      </div>
-
-      <hr />
-
-      <!-- 自动化设置 -->
-      <div class="collapsible-header" @click.stop="sections.automationSettings = !sections.automationSettings">
-        <strong>自动化设置</strong>
-        <i :class="['fa-solid', 'fa-chevron-down', { 'is-rotated': !sections.automationSettings }]"></i>
-      </div>
-      <div v-show="sections.automationSettings" class="collapsible-content flex-container flexFlowColumn">
+        <div v-show="sections.automationSettings" class="section-content flex-container flexFlowColumn">
         <label for="auto_runner_total_replies">总回复次数</label>
         <input
           id="auto_runner_total_replies"
@@ -226,11 +220,11 @@ import type { PromptEntry } from './types';
 const models = ref<string[]>([]);
 
 const sections = ref({
-  promptSets: true,
+  promptSets: false,
   contextRegex: false,
   subAiRegex: false,
   apiSettings: false,
-  automationSettings: true,
+  automationSettings: false,
 });
 
 // 监视脚本启用/禁用状态
@@ -304,12 +298,17 @@ const getModels = async () => {
 </script>
 
 <style lang="scss" scoped>
-.collapsible-header {
+.section-wrapper {
+  border-top: 1px solid var(--bg2);
+  padding: 0.5em 0;
+}
+
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  padding: 8px 4px;
+  padding: 0.25em 4px;
   border-radius: 4px;
   transition: background-color 0.2s ease;
 
@@ -326,12 +325,12 @@ const getModels = async () => {
   }
 
   .is-rotated {
-    transform: rotate(-90deg);
+    transform: rotate(90deg);
   }
 }
 
-.collapsible-content {
-  padding: 10px 4px;
+.section-content {
+  padding: 10px 4px 0;
 }
 
 .wide-button {
