@@ -113,11 +113,11 @@
             <option v-for="model in models" :key="model" :value="model">{{ model }}</option>
           </select>
           <label for="auto_runner_temperature">Temperature: {{ settings.temperature }}</label>
-          <input id="auto_runner_temperature" v-model.number="settings.temperature" type="range" step="0.1" min="0" max="2" />
+          <input id="auto_runner_temperature" v-model.number="settings.temperature" type="range" step="0.01" min="0" max="2" />
           <label for="auto_runner_top_p">Top P: {{ settings.top_p }}</label>
-          <input id="auto_runner_top_p" v-model.number="settings.top_p" type="range" step="0.05" min="0" max="1" />
+          <input id="auto_runner_top_p" v-model.number="settings.top_p" type="range" step="0.01" min="0" max="1" />
           <label for="auto_runner_top_k">Top K: {{ settings.top_k }}</label>
-          <input id="auto_runner_top_k" v-model.number="settings.top_k" type="range" step="1" min="0" max="100" />
+          <input id="auto_runner_top_k" v-model.number="settings.top_k" type="range" step="1" min="0" max="500" />
           <label for="auto_runner_max_tokens">Max Tokens: {{ settings.max_tokens }}</label>
           <input id="auto_runner_max_tokens" v-model.number="settings.max_tokens" type="number" class="text_pole" min="1" />
         </div>
