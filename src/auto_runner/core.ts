@@ -737,8 +737,9 @@ async function runAutomation(isFirstRun = false) {
 
 // --- 监听主AI消息完成事件 ---
 function onMessageReceived() {
-  // 增加锁检查，如果一个自动化流程已在运行，则不安排新的，作为“双保险”
-  if (state === AutomationState.RUNNING && !isAutomationRunning) {
+  // 这里的锁检查是错误的，已移除。
+  // 正确的并发控制在 runAutomation 的入口处。
+  if (state === AutomationState.RUNNING) {
     // 等待一小段时间，确保酒馆完全处理完消息
     // 后续的运行都不是首次运行
     setTimeout(() => runAutomation(false), 1000);
