@@ -16,6 +16,7 @@ enum AutomationState {
 }
 
 let state: AutomationState = AutomationState.IDLE;
+let isAutomationRunning = false; // 防止并发执行的锁
 export const settings = ref<Settings>(SettingsSchema.parse({}));
 let retryCount = 0;
 let internalExemptionCounter = 0; // 新增的、只在内存中的豁免计数器
@@ -637,30 +638,39 @@ async function triggerSscAndProcess(): Promise<boolean> {
 // --- 主循环逻辑 ---
 
 async function runAutomation(isFirstRun = false) {
+  // 关键修复：防止并发执行的锁检查
+  if (isAutomationRunning) {
+    console.log('[AutoRunner] Automation is already running. Ignoring concurrent trigger.');
+    return;
+  }
+
   if (shouldStop()) {
     stopAutomation();
     return;
   }
 
-  // 首次运行时，我们信任 startAutomation 中准备好的、最新的设置。
-  // 后续运行时，刷新以获取用户在UI上可能做出的新更改。
-  if (!isFirstRun) {
-    await refreshSettings();
-  }
-  const lastMessage = (getChatMessages(-1) || [])[0];
-
-  if (!lastMessage) {
-    showToast('error', '无法获取最后一条消息，自动化暂停。', true);
-    state = AutomationState.PAUSED;
-    return;
-  }
-
   try {
+    isAutomationRunning = true; // 获取锁
+
+    // 首次运行时，我们信任 startAutomation 中准备好的、最新的设置。
+    // 后续运行时，刷新以获取用户在UI上可能做出的新更改。
+    if (!isFirstRun) {
+      await refreshSettings();
+    }
+    const lastMessage = (getChatMessages(-1) || [])[0];
+
+    if (!lastMessage) {
+      showToast('error', '无法获取最后一条消息，自动化暂停。', true);
+      state = AutomationState.PAUSED;
+      return; // finally 将释放锁
+    }
+
     if (lastMessage.role === 'user') {
       // --- 分支 A: 最后一条是用户消息 ---
       showToast('info', '检测到用户消息，触发主AI生成...');
       await triggerSlash('/trigger await=true');
       // 主AI响应完成后，绑定的 tavern_events.MESSAGE_RECEIVED 事件会再次触发 runAutomation
+      // 不在这里增加计数，因为这不是一个完整的循环
     } else {
       // --- 分支 B: 最后一条是AI消息 ---
       showToast('info', '检测到AI消息，开始完整循环...');
@@ -668,9 +678,8 @@ async function runAutomation(isFirstRun = false) {
       // 步骤 1 & 2: SSC 和 一键处理
       const processSuccess = await triggerSscAndProcess();
       if (!processSuccess) {
-        // The toast is now handled by stopAutomation, so we remove the one here.
         stopAutomation({ skipFinalProcessing: true, userCancelled: true });
-        return;
+        return; // finally 将释放锁
       }
 
       // 步骤 3: 发送给副AI，并包含重试逻辑
@@ -680,61 +689,56 @@ async function runAutomation(isFirstRun = false) {
         const result = await callSubAI();
 
         if (result === ABORT_SIGNAL) {
-          // 用户中止了操作，停止整个自动化流程
           stopAutomation({ skipFinalProcessing: true, userCancelled: true });
-          return;
+          return; // finally 将释放锁
         }
 
         if (result) {
           subAiReply = result;
-          break; // 成功获取回复，跳出循环
+          break;
         }
 
-        // result 为 null，表示普通失败，进行重试
         subAiRetryCount++;
         if (subAiRetryCount > settings.value.maxRetries) {
           showToast('error', `调用副AI已达到最大重试次数 (${settings.value.maxRetries})，自动化已停止。`, true);
           stopAutomation({ skipFinalProcessing: true });
-          return;
+          return; // finally 将释放锁
         }
         showToast('warning', `调用副AI失败，将在5秒后重试 (${subAiRetryCount}/${settings.value.maxRetries})`);
         await delay(5000);
       }
 
       if (!subAiReply) {
-        // 如果循环结束仍未获得回复（因为中止或重试次数耗尽），则直接返回。
-        // 相关的停止逻辑已在循环内部处理。
-        return;
+        return; // 相关的停止逻辑已在循环内部处理
       }
 
       // 步骤 4: 处理副AI回复并以用户身份发送
       const processedReply = processSubAiResponse(subAiReply);
-      // 更新UI上的文本框
-      // 注意：这里无法直接更新Vue组件的ref，需要通过事件或其他方式通知UI
-      // 暂时我们先将它存入一个临时变量，或者考虑用一个 message event
       console.log('处理后的回复:', processedReply);
 
       showToast('info', '以用户身份发送处理后的消息...');
-      // 使用 /send 命令，它默认以用户身份发送
-
-      // 根据用户指示，直接发送处理后的消息，不添加任何引号或转义
       await triggerSlash(`/send ${processedReply}`);
       await triggerSlash('/trigger await=true'); // 触发主AI生成
     }
 
-    await incrementExecutedCount();
+    // 关键修复：只有在完整的分支B（AI消息 -> 用户消息 -> AI消息）完成后，才增加计数
+    if (lastMessage.role !== 'user') {
+      await incrementExecutedCount();
+    }
   } catch (error) {
-    // 这个 catch 现在只处理 triggerSscAndProcess 和 triggerSlash 中的意外错误
     console.error('自动化循环出错:', error);
     showToast('error', `自动化循环发生意外错误: ${(error as Error).message}，流程已终止。`, true);
     state = AutomationState.ERROR;
     stopAutomation({ skipFinalProcessing: true });
+  } finally {
+    isAutomationRunning = false; // 释放锁
   }
 }
 
 // --- 监听主AI消息完成事件 ---
 function onMessageReceived() {
-  if (state === AutomationState.RUNNING) {
+  // 增加锁检查，如果一个自动化流程已在运行，则不安排新的，作为“双保险”
+  if (state === AutomationState.RUNNING && !isAutomationRunning) {
     // 等待一小段时间，确保酒馆完全处理完消息
     // 后续的运行都不是首次运行
     setTimeout(() => runAutomation(false), 1000);
@@ -770,6 +774,9 @@ function onRunButtonClicked() {
 
 async function startAutomation() {
   if (state === AutomationState.RUNNING) return;
+
+  // 关键修复：重置锁状态，以防万一
+  isAutomationRunning = false;
 
   if (!settings.value.enabled) {
     showToast('warning', '脚本未启用，请先勾选“启用脚本”。', true);
@@ -816,6 +823,7 @@ export async function stopAutomation(options: { skipFinalProcessing?: boolean; u
   showToast('info', stopMessage, true);
 
   state = AutomationState.IDLE;
+  isAutomationRunning = false; // 关键修复：释放锁
 
   // 解绑事件
   eventRemoveListener(tavern_events.MESSAGE_RECEIVED, onMessageReceived);
