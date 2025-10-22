@@ -6,7 +6,7 @@
     </div>
 
     <div class="inline-drawer-content">
-      <div class="flex-container flexFlowColumn" style="padding-bottom: 0.5em;">
+      <div class="flex-container flexFlowColumn" style="padding-bottom: 0.5em">
         <label class="checkbox_label" for="auto_runner_enabled">
           <input id="auto_runner_enabled" v-model="settings.enabled" type="checkbox" />
           <span>启用脚本 (核心功能)</span>
@@ -42,7 +42,7 @@
             <button class="menu_button wide-button" @click="importPromptSets">导入配置</button>
             <button class="menu_button wide-button" @click="exportActivePromptSet">导出当前配置</button>
           </div>
-          <hr style="margin: 15px 0;" />
+          <hr style="margin: 15px 0" />
           <PromptEditor :entries="activePromptSet.promptEntries" @update:entries="updateEntries" />
         </div>
       </div>
@@ -101,9 +101,21 @@
         </label>
         <div class="section-content flex-container flexFlowColumn">
           <label for="auto_runner_api_url">API 地址</label>
-          <input id="auto_runner_api_url" v-model="settings.apiUrl" type="text" class="text_pole" placeholder="http://localhost:1234/v1" />
+          <input
+            id="auto_runner_api_url"
+            v-model="settings.apiUrl"
+            type="text"
+            class="text_pole"
+            placeholder="http://localhost:1234/v1"
+          />
           <label for="auto_runner_api_key">API 密钥</label>
-          <input id="auto_runner_api_key" v-model="settings.apiKey" type="password" class="text_pole" placeholder="留空表示无需密钥" />
+          <input
+            id="auto_runner_api_key"
+            v-model="settings.apiKey"
+            type="password"
+            class="text_pole"
+            placeholder="留空表示无需密钥"
+          />
           <div class="flex-container">
             <button class="menu_button wide-button" @click="getModels">获取模型</button>
           </div>
@@ -113,13 +125,26 @@
             <option v-for="model in models" :key="model" :value="model">{{ model }}</option>
           </select>
           <label for="auto_runner_temperature">Temperature: {{ settings.temperature }}</label>
-          <input id="auto_runner_temperature" v-model.number="settings.temperature" type="range" step="0.01" min="0" max="2" />
+          <input
+            id="auto_runner_temperature"
+            v-model.number="settings.temperature"
+            type="range"
+            step="0.01"
+            min="0"
+            max="2"
+          />
           <label for="auto_runner_top_p">Top P: {{ settings.top_p }}</label>
           <input id="auto_runner_top_p" v-model.number="settings.top_p" type="range" step="0.01" min="0" max="1" />
           <label for="auto_runner_top_k">Top K: {{ settings.top_k }}</label>
           <input id="auto_runner_top_k" v-model.number="settings.top_k" type="range" step="1" min="0" max="500" />
           <label for="auto_runner_max_tokens">Max Tokens: {{ settings.max_tokens }}</label>
-          <input id="auto_runner_max_tokens" v-model.number="settings.max_tokens" type="number" class="text_pole" min="1" />
+          <input
+            id="auto_runner_max_tokens"
+            v-model.number="settings.max_tokens"
+            type="number"
+            class="text_pole"
+            min="1"
+          />
         </div>
       </div>
 
@@ -131,18 +156,42 @@
         </label>
         <div class="section-content flex-container flexFlowColumn">
           <label for="auto_runner_total_replies">总回复次数</label>
-          <input id="auto_runner_total_replies" v-model.number="settings.totalReplies" type="number" class="text_pole" min="1" />
+          <input
+            id="auto_runner_total_replies"
+            v-model.number="settings.totalReplies"
+            type="number"
+            class="text_pole"
+            min="1"
+          />
           <label for="auto_runner_max_retries">最大重试次数</label>
-          <input id="auto_runner_max_retries" v-model.number="settings.maxRetries" type="number" class="text_pole" min="0" />
+          <input
+            id="auto_runner_max_retries"
+            v-model.number="settings.maxRetries"
+            type="number"
+            class="text_pole"
+            min="0"
+          />
           <label for="auto_runner_exemption_count">SSC及一键处理豁免次数</label>
-          <input id="auto_runner_exemption_count" v-model.number="settings.exemptionCount" type="number" class="text_pole" min="0" />
+          <input
+            id="auto_runner_exemption_count"
+            v-model.number="settings.exemptionCount"
+            type="number"
+            class="text_pole"
+            min="0"
+          />
           <label class="checkbox_label" for="auto_runner_concise_notifications">
             <input id="auto_runner_concise_notifications" v-model="settings.conciseNotifications" type="checkbox" />
             <span>简洁通知模式</span>
           </label>
           <label for="auto_runner_executed_count">自动执行次数计数</label>
           <div id="auto_runner_executed_count" class="text_pole">{{ settings.executedCount }}</div>
-          <button :disabled="!isCallingSubAI" :class="['menu_button', 'wide-button', { danger: isCallingSubAI }]" style="margin-top: 15px" @click="abortSubAICall" :title="isCallingSubAI ? '点击以中止请求' : '（无正在进行的请求）'">
+          <button
+            :disabled="!isCallingSubAI"
+            :class="['menu_button', 'wide-button', { danger: isCallingSubAI }]"
+            style="margin-top: 15px"
+            @click="abortSubAICall"
+            :title="isCallingSubAI ? '点击以中止请求' : '（无正在进行的请求）'"
+          >
             <i class="fa-solid fa-stop"></i>
             {{ isCallingSubAI ? '中断副 AI' : '中断副 AI' }}
           </button>
@@ -172,7 +221,6 @@ import PromptEditor from './PromptEditor.vue';
 import type { PromptEntry } from './types';
 
 const models = ref<string[]>([]);
-
 
 // 监视脚本启用/禁用状态
 watch(

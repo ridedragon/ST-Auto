@@ -1,7 +1,14 @@
 import _ from 'lodash';
 import { computed, ref, watch } from 'vue';
 import { z } from 'zod';
-import { PromptEntrySchema, PromptSetSchema, SettingsSchema, RegexRuleSchema, type RegexRule, type Settings } from './types';
+import {
+  PromptEntrySchema,
+  PromptSetSchema,
+  SettingsSchema,
+  RegexRuleSchema,
+  type RegexRule,
+  type Settings,
+} from './types';
 
 // --- 状态管理 ---
 const ABORT_SIGNAL = Symbol('ABORT_SIGNAL');
