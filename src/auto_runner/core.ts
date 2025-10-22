@@ -1,7 +1,7 @@
 import _ from 'lodash';
+import { computed, ref, watch } from 'vue';
 import { z } from 'zod';
-import { SettingsSchema, type Settings, type RegexRule, PromptSetSchema, PromptEntrySchema } from './types';
-import { ref, computed, watch } from 'vue';
+import { PromptEntrySchema, PromptSetSchema, SettingsSchema, RegexRuleSchema, type RegexRule, type Settings } from './types';
 
 // --- 状态管理 ---
 const ABORT_SIGNAL = Symbol('ABORT_SIGNAL');
@@ -94,19 +94,29 @@ export function deleteActivePromptSet() {
 
 export function exportActivePromptSet() {
   const activeSet = activePromptSet.value;
-  if (!activeSet) return;
+  if (!activeSet || activeSet.name === '（无有效配置）') {
+    showToast('error', '没有可导出的有效配置。');
+    return;
+  }
 
-  const jsonString = JSON.stringify(activeSet, null, 2);
+  const exportData = {
+    version: 2,
+    promptSet: activeSet,
+    contextRegexRules: settings.value.contextRegexRules,
+    subAiRegexRules: settings.value.subAiRegexRules,
+  };
+
+  const jsonString = JSON.stringify(exportData, null, 2);
   const blob = new Blob([jsonString], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${activeSet.name}.json`;
+  a.download = `[AutoRunner] ${activeSet.name}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('success', '当前配置已导出');
+  showToast('success', '当前完整预设（提示词+正则）已导出');
 }
 
 export function importPromptSets() {
@@ -120,33 +130,78 @@ export function importPromptSets() {
     const text = await file.text();
     try {
       const data = JSON.parse(text);
-      const setsToImport: any[] = Array.isArray(data) ? data : [data];
 
-      let importedCount = 0;
-      for (const setData of setsToImport) {
-        // 验证导入的数据是否符合格式
-        const parsed = PromptSetSchema.safeParse(setData);
-        if (parsed.success) {
-          // 检查名称是否已存在
-          if (settings.value.promptSets.some(p => p.name === parsed.data.name)) {
-            if (!window.confirm(`已存在名为 "${parsed.data.name}" 的配置。要覆盖它吗？`)) {
-              continue; // 跳过这个
+      // --- 新的导入逻辑 ---
+      if (data.version === 2 && data.promptSet) {
+        // 这是新的完整预设格式
+        const { promptSet, contextRegexRules, subAiRegexRules } = data;
+
+        // 1. 导入提示词集
+        const parsedSet = PromptSetSchema.safeParse(promptSet);
+        if (parsedSet.success) {
+          let targetSet = settings.value.promptSets.find(p => p.name === parsedSet.data.name);
+          if (targetSet) {
+            if (window.confirm(`已存在名为 "${parsedSet.data.name}" 的提示词配置。要覆盖它吗？`)) {
+              const index = settings.value.promptSets.findIndex(p => p.id === targetSet!.id);
+              if (index > -1) {
+                // 保持ID不变，只更新内容
+                parsedSet.data.id = targetSet.id;
+                settings.value.promptSets[index] = parsedSet.data;
+              }
             }
-            // 删除旧的
-            const oldIndex = settings.value.promptSets.findIndex(p => p.name === parsed.data.name);
-            if (oldIndex > -1) settings.value.promptSets.splice(oldIndex, 1);
+          } else {
+            parsedSet.data.id = `set_${Date.now()}_${Math.random()}`;
+            settings.value.promptSets.push(parsedSet.data);
           }
-          // 确保ID唯一
-          parsed.data.id = `set_${Date.now()}_${Math.random()}`;
-          settings.value.promptSets.push(parsed.data);
-          importedCount++;
+          settings.value.activePromptSetId = parsedSet.data.id;
+          showToast('success', `提示词配置 "${parsedSet.data.name}" 已导入并激活。`);
         } else {
-          console.error('导入的数据格式无效:', parsed.error);
-          showToast('error', '一个或多个导入的配置格式无效，详情请查看控制台。', true);
+          showToast('error', '导入的提示词配置部分格式无效。', true);
+          return;
         }
-      }
-      if (importedCount > 0) {
-        showToast('success', `成功导入 ${importedCount} 个配置。`);
+
+        // 2. 导入正则规则
+        if (
+          contextRegexRules &&
+          subAiRegexRules &&
+          window.confirm('文件包含正则规则。要用导入的规则覆盖当前的上下文和副AI正则规则吗？')
+        ) {
+          const parsedContextRules = z.array(RegexRuleSchema).safeParse(contextRegexRules);
+          const parsedSubAiRules = z.array(RegexRuleSchema).safeParse(subAiRegexRules);
+
+          if (parsedContextRules.success && parsedSubAiRules.success) {
+            settings.value.contextRegexRules = parsedContextRules.data;
+            settings.value.subAiRegexRules = parsedSubAiRules.data;
+            showToast('success', '上下文和副AI正则规则已成功导入。');
+          } else {
+            showToast('error', '导入的正则规则部分格式无效。', true);
+          }
+        }
+      } else {
+        // --- 旧的、只导入提示词集的逻辑 ---
+        const setsToImport: any[] = Array.isArray(data) ? data : [data];
+        let importedCount = 0;
+        for (const setData of setsToImport) {
+          const parsed = PromptSetSchema.safeParse(setData);
+          if (parsed.success) {
+            if (settings.value.promptSets.some(p => p.name === parsed.data.name)) {
+              if (!window.confirm(`已存在名为 "${parsed.data.name}" 的配置。要覆盖它吗？`)) {
+                continue;
+              }
+              const oldIndex = settings.value.promptSets.findIndex(p => p.name === parsed.data.name);
+              if (oldIndex > -1) settings.value.promptSets.splice(oldIndex, 1);
+            }
+            parsed.data.id = `set_${Date.now()}_${Math.random()}`;
+            settings.value.promptSets.push(parsed.data);
+            importedCount++;
+          } else {
+            console.error('导入的数据格式无效:', parsed.error);
+            showToast('error', '一个或多个导入的配置格式无效，详情请查看控制台。', true);
+          }
+        }
+        if (importedCount > 0) {
+          showToast('success', `成功导入 ${importedCount} 个旧格式的配置。`);
+        }
       }
     } catch (error) {
       console.error('导入失败:', error);
@@ -295,30 +350,68 @@ export async function refreshSettings() {
   } else {
     // 2. 解析失败，数据已损坏或格式过时
     console.error('[AutoRunner] 加载或解析设置失败:', result.error);
-    showToast('error', '加载设置失败，将使用默认设置。', true);
+    showToast('error', '加载设置时发现不兼容的数据，将尝试迁移。您的部分设置可能已重置。', true);
 
-    // 创建一个全新的、有效的默认状态
-    const chatHistoryEntry = PromptEntrySchema.parse({
-      name: '聊天记录',
-      content: '此条目是聊天记录的占位符',
-      enabled: true,
-      editing: false,
-      role: 'user',
-      is_chat_history: true,
-    });
-    const defaultSet = PromptSetSchema.parse({
-      name: '默认配置',
-      promptEntries: [chatHistoryEntry],
-    });
-    const defaultSettings = SettingsSchema.parse({
-      promptSets: [defaultSet],
-      activePromptSetId: defaultSet.id,
-    });
-    settings.value = defaultSettings;
+    // --- 稳健的迁移逻辑 ---
+    const migratedSettings = SettingsSchema.parse({}); // 创建一个包含所有默认值的新设置对象
 
-    // 用这个全新的默认设置覆盖掉已损坏的旧数据，防止下次加载再次失败
-    debouncedSave.cancel(); // 取消任何待处理的保存
-    replaceVariables(JSON.parse(JSON.stringify(defaultSettings)), { type: 'script', script_id: getScriptId() });
+    // 逐个字段尝试从旧数据迁移
+    for (const key in migratedSettings) {
+      if (Object.prototype.hasOwnProperty.call(savedSettings, key)) {
+        const keyTyped = key as keyof Settings;
+        const fieldSchema = SettingsSchema.shape[keyTyped];
+        const parseResult = fieldSchema.safeParse(savedSettings[keyTyped]);
+        if (parseResult.success) {
+          // @ts-expect-error - We are dynamically assigning to a typed object, which is unsafe but intended here.
+          migratedSettings[keyTyped] = parseResult.data;
+        } else {
+          console.warn(`[AutoRunner] 无法迁移字段 "${keyTyped}"，将使用默认值。错误:`, parseResult.error);
+        }
+      }
+    }
+
+    // 对迁移后的数据执行与成功路径中相同的健康检查
+    let wasModified = false;
+    if (migratedSettings.promptSets.length === 0) {
+      const chatHistoryEntry = PromptEntrySchema.parse({
+        name: '聊天记录',
+        content: '此条目是聊天记录的占位符',
+        enabled: true,
+        editing: false,
+        role: 'user',
+        is_chat_history: true,
+      });
+      const defaultSet = PromptSetSchema.parse({ name: '默认配置', promptEntries: [chatHistoryEntry] });
+      migratedSettings.promptSets.push(defaultSet);
+      migratedSettings.activePromptSetId = defaultSet.id;
+      wasModified = true;
+    } else {
+      for (const pSet of migratedSettings.promptSets) {
+        if (!pSet.promptEntries.some(e => e.is_chat_history)) {
+          const chatHistoryEntry = PromptEntrySchema.parse({
+            name: '聊天记录',
+            content: '此条目是聊天记录的占位符',
+            enabled: true,
+            editing: false,
+            role: 'user',
+            is_chat_history: true,
+          });
+          pSet.promptEntries.unshift(chatHistoryEntry);
+          wasModified = true;
+        }
+      }
+    }
+    if (!migratedSettings.promptSets.some(p => p.id === migratedSettings.activePromptSetId)) {
+      migratedSettings.activePromptSetId = migratedSettings.promptSets[0]?.id || null;
+      wasModified = true;
+    }
+
+    settings.value = migratedSettings;
+
+    // 用修复和迁移后的设置覆盖掉旧数据
+    debouncedSave.cancel();
+    replaceVariables(JSON.parse(JSON.stringify(migratedSettings)), { type: 'script', script_id: getScriptId() });
+    showToast('success', '数据迁移完成。请检查您的设置。', true);
   }
 }
 
