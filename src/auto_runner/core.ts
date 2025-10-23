@@ -261,24 +261,34 @@ function applyRegexRules(text: string, rules: readonly RegexRule[]): string {
   for (const rule of rules) {
     if (rule.enabled && rule.find) {
       try {
-        // 尝试解析 /pattern/flags 格式
         const match = rule.find.match(/^\/(.*)\/([gimsuy]*)$/s);
-        let regex: RegExp;
+        let pattern: string;
+        let flags: string;
 
         if (match) {
-          // 输入是 /.../flags 格式
-          const pattern = match[1];
-          const flags = match[2];
-          regex = new RegExp(pattern, flags);
+          pattern = match[1];
+          flags = match[2];
         } else {
-          // 输入是普通字符串，默认使用 'g' 标志
-          regex = new RegExp(rule.find, 'g');
+          pattern = rule.find;
+          flags = 'g'; // 默认是全局
         }
 
-        processedText = processedText.replace(regex, rule.replace);
+        // 如果模式以 ^ 开头，全局标志 'g' 的行为可能不符合预期。
+        // 在这种情况下，我们移除 'g' 标志，并手动循环替换。
+        if (pattern.startsWith('^') && flags.includes('g')) {
+          const nonGlobalFlags = flags.replace('g', '');
+          const regex = new RegExp(pattern, nonGlobalFlags);
+          // 循环替换，直到不再匹配
+          while (regex.test(processedText)) {
+            processedText = processedText.replace(regex, rule.replace);
+          }
+        } else {
+          // 对于其他情况，标准替换即可
+          const regex = new RegExp(pattern, flags);
+          processedText = processedText.replace(regex, rule.replace);
+        }
       } catch (e) {
         console.error(`正则表达式规则 "${rule.name || rule.id}" 无效:`, e);
-        // 避免在控制台刷屏
       }
     }
   }
