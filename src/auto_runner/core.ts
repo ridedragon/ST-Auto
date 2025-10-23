@@ -800,6 +800,12 @@ async function runAutomation(isFirstRun = false) {
         return; // finally 将释放锁
       }
 
+      // 关键修复：在长时间处理后，再次检查状态，确保在调用副AI之前没有被终止
+      if (state !== AutomationState.RUNNING) {
+        console.log('[AutoRunner] Automation was stopped during SSC/process phase. Aborting sub AI call.');
+        return; // finally 将释放锁
+      }
+
       // 步骤 3: 发送给副AI，并包含重试逻辑
       let subAiReply: string | null = null;
       let subAiRetryCount = 0;
