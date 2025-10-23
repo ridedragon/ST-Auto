@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+// 定义附件的结构
+export const AttachmentSchema = z.object({
+  id: z.string().default(() => `attachment_${Date.now()}_${Math.random()}`),
+  name: z.string(),
+  type: z.string(),
+  content: z.string(), // base64 encoded content
+});
+export type Attachment = z.infer<typeof AttachmentSchema>;
+
 // 定义单条正则表达式规则的结构
 export const RegexRuleSchema = z.object({
   id: z.string().default(() => `rule_${Date.now()}_${Math.random()}`),
@@ -15,6 +24,7 @@ export const PromptEntrySchema = z.object({
   id: z.string().default(() => `prompt_${Date.now()}_${Math.random()}`),
   name: z.string(),
   content: z.string(),
+  attachments: z.array(AttachmentSchema).optional().default([]),
   enabled: z.boolean(),
   editing: z.boolean(),
   role: z.enum(['user', 'system', 'assistant']),

@@ -485,24 +485,81 @@ async function callSubAI(): Promise<string | null | typeof ABORT_SIGNAL> {
       return null;
     }
 
-    const finalMessages: { role: string; content: string }[] = [];
+    const finalMessages: {
+      role: string;
+      content: (string | { type: string; image_url?: { url: string }; text?: string })[];
+    }[] = [];
+
     const messagesForSubAI = allMessages.filter(msg => msg.role !== 'system');
     const processedChatMessages = messagesForSubAI.map(msg => {
       const content = applyRegexRules(msg.message, settings.value.contextRegexRules);
-      return { role: msg.role, content };
+      return { role: msg.role, content: [content] };
     });
 
     for (const entry of activePromptSet.value.promptEntries) {
       if (entry.is_chat_history) {
         finalMessages.push(...processedChatMessages);
-      } else if (entry.enabled && entry.content) {
-        finalMessages.push({ role: entry.role, content: entry.content });
+      } else if (entry.enabled) {
+        const contentParts: (string | { type: string; image_url?: { url: string }; text?: string })[] = [];
+
+        // Add text content if it exists
+        if (entry.content) {
+          contentParts.push(entry.content);
+        }
+
+        // Add attachments
+        if (entry.attachments && entry.attachments.length > 0) {
+          for (const attachment of entry.attachments) {
+            if (attachment.type.startsWith('image/')) {
+              contentParts.push({
+                type: 'image_url',
+                image_url: {
+                  url: `data:${attachment.type};base64,${attachment.content}`,
+                },
+              });
+            } else {
+              // For non-image files, append their content as text
+              try {
+                const decodedContent = atob(attachment.content);
+                contentParts.push(
+                  `\n\n--- Attachment: ${attachment.name} ---\n${decodedContent}\n--- End Attachment ---`,
+                );
+              } catch (e) {
+                console.error(`Error decoding attachment ${attachment.name}:`, e);
+              }
+            }
+          }
+        }
+
+        if (contentParts.length > 0) {
+          finalMessages.push({ role: entry.role, content: contentParts });
+        }
       }
     }
 
+    // OpenAI's type for messages with images is slightly different.
+    // We need to adjust the structure if there are images.
+    const messagesForApi = finalMessages.map(msg => {
+      // If content is an array and has more than just a single string,
+      // it's a multi-modal message.
+      if (Array.isArray(msg.content) && msg.content.length > 1) {
+        const newContent = msg.content
+          .map(part => {
+            if (typeof part === 'string') {
+              return { type: 'text', text: part };
+            }
+            return part;
+          })
+          .filter(Boolean); // Filter out any empty parts
+        return { ...msg, content: newContent };
+      }
+      // Otherwise, it's a simple text message.
+      return { ...msg, content: Array.isArray(msg.content) ? msg.content.join('\n') : msg.content };
+    });
+
     const body = {
       model: settings.value.model,
-      messages: finalMessages,
+      messages: messagesForApi,
       temperature: settings.value.temperature,
       top_p: settings.value.top_p,
       top_k: settings.value.top_k,

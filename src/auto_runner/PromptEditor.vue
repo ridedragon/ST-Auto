@@ -38,6 +38,24 @@
       </div>
       <div v-if="entry.editing && !entry.is_chat_history" class="rule-body">
         <textarea v-model="entry.content" class="text_pole" placeholder="提示词内容..." @input="update"></textarea>
+        <div class="attachments-section">
+          <div class="attachment-list">
+            <div v-for="(attachment, attIndex) in entry.attachments" :key="attachment.id" class="attachment-item">
+              <span>{{ attachment.name }}</span>
+              <button class="menu_button icon-button" @click="removeAttachment(entry, attIndex)">
+                <i class="fa-solid fa-times"></i>
+              </button>
+            </div>
+          </div>
+          <button class="menu_button" @click="triggerFileInput(entry)">添加附件</button>
+          <input
+            type="file"
+            multiple
+            style="display: none"
+            :id="'file-input-' + entry.id"
+            @change="handleFileUpload($event, entry)"
+          />
+        </div>
         <select v-model="entry.role" class="text_pole" @change="update">
           <option>user</option>
           <option>system</option>
@@ -51,7 +69,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { PromptEntrySchema, type PromptEntry } from './types';
+import { PromptEntrySchema, type PromptEntry, AttachmentSchema, type Attachment } from './types';
 
 const props = defineProps<{
   entries: PromptEntry[];
@@ -90,6 +108,52 @@ function removeEntry(index: number) {
 function toggleEdit(entry: PromptEntry) {
   entry.editing = !entry.editing;
   update();
+}
+
+let currentEntryForFileUpload: PromptEntry | null = null;
+
+function triggerFileInput(entry: PromptEntry) {
+  currentEntryForFileUpload = entry;
+  const fileInput = document.getElementById('file-input-' + entry.id);
+  if (fileInput) {
+    fileInput.click();
+  }
+}
+
+async function handleFileUpload(event: Event, entry: PromptEntry) {
+  const input = event.target as HTMLInputElement;
+  if (!input.files) return;
+
+  const files = Array.from(input.files);
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const content = (e.target?.result as string).split(',')[1]; // Get base64 content
+      if (content) {
+        const newAttachment = AttachmentSchema.parse({
+          name: file.name,
+          type: file.type,
+          content: content,
+        });
+        if (!entry.attachments) {
+          entry.attachments = [];
+        }
+        entry.attachments.push(newAttachment);
+        update();
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Reset file input
+  input.value = '';
+}
+
+function removeAttachment(entry: PromptEntry, index: number) {
+  if (entry.attachments) {
+    entry.attachments.splice(index, 1);
+    update();
+  }
 }
 
 // Drag and Drop
@@ -142,6 +206,27 @@ function drop(targetIndex: number) {
 
 .rule-body select {
   margin-top: 5px;
+}
+
+.attachments-section {
+  margin-top: 10px;
+}
+
+.attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+
+.attachment-item {
+  background-color: var(--bg2);
+  padding: 2px 8px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.9em;
 }
 
 .wide-button {
