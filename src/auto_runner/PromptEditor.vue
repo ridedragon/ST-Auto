@@ -47,13 +47,13 @@
               </button>
             </div>
           </div>
-          <button class="menu_button" @click="triggerFileInput(entry)">添加附件</button>
+          <button class="menu_button attachment-button" @click="triggerFileInput(entry)">添加附件</button>
           <input
             type="file"
             multiple
             style="display: none"
             :id="'file-input-' + entry.id"
-            @change="handleFileUpload($event, entry)"
+            @change="handleFileUpload($event)"
           />
         </div>
         <select v-model="entry.role" class="text_pole" @change="update">
@@ -120,7 +120,9 @@ function triggerFileInput(entry: PromptEntry) {
   }
 }
 
-async function handleFileUpload(event: Event, entry: PromptEntry) {
+async function handleFileUpload(event: Event) {
+  if (!currentEntryForFileUpload) return;
+  const entry = currentEntryForFileUpload;
   const input = event.target as HTMLInputElement;
   if (!input.files) return;
 
@@ -227,6 +229,10 @@ function drop(targetIndex: number) {
   align-items: center;
   gap: 5px;
   font-size: 0.9em;
+}
+
+.attachment-button {
+  white-space: nowrap;
 }
 
 .wide-button {
