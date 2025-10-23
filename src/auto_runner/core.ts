@@ -1012,6 +1012,14 @@ export function abortSubAICall() {
 }
 
 /**
+ * 彻底中止所有自动化流程的紧急函数
+ */
+export function abortAll() {
+  // 使用这些选项来模拟用户立即、无条件地停止一切
+  stopAutomation({ skipFinalProcessing: true, userCancelled: true });
+}
+
+/**
  * 脚本加载时执行
  */
 export function start() {
@@ -1022,6 +1030,7 @@ export function start() {
   initializeGlobal('AutoRunnerCore', {
     toggleTrulyAutomatedMode,
     abortSubAICall,
+    abortAll, // 将新的终止函数添加到全局接口
   });
 }
 
