@@ -682,6 +682,7 @@ async function triggerSscAndProcess(): Promise<boolean> {
         showToast('info', '自动化流程已由用户在步骤1取消。');
         return false; // 用户取消
       }
+      if (state !== AutomationState.RUNNING) return false; // 在弹窗后检查中止状态
 
       showToast('info', '正在发送给AI优化...');
 
@@ -726,6 +727,7 @@ async function triggerSscAndProcess(): Promise<boolean> {
         showToast('info', '替换操作已由用户取消。');
         return false; // 用户取消
       }
+      if (state !== AutomationState.RUNNING) return false; // 在第二个弹窗后检查中止状态
 
       showToast('info', '正在执行SSC替换...');
       await new Promise<void>(resolve => {
