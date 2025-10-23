@@ -41,7 +41,7 @@
         <div class="attachments-section">
           <div class="attachment-list">
             <div v-for="(attachment, attIndex) in entry.attachments" :key="attachment.id" class="attachment-item">
-              <span>{{ attachment.name }}</span>
+              <span class="attachment-name">{{ attachment.name }}</span>
               <button
                 class="menu_button icon-button delete-attachment-btn"
                 title="删除附件"
@@ -232,6 +232,20 @@ function drop(targetIndex: number) {
   align-items: center;
   gap: 5px;
   font-size: 0.9em;
+  max-width: 100%; /* Ensure the item itself doesn't overflow its container */
+  overflow: hidden; /* Hide anything that might still overflow */
+}
+
+.attachment-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1;
+  min-width: 0; /* Important for flexbox to allow shrinking */
+}
+
+.delete-attachment-btn {
+  flex-shrink: 0; /* Prevent the delete button from shrinking */
 }
 
 .attachment-button {
