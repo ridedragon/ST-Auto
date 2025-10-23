@@ -48,13 +48,6 @@
             </div>
           </div>
           <button class="menu_button attachment-button" @click="triggerFileInput(entry)">添加附件</button>
-          <input
-            type="file"
-            multiple
-            style="display: none"
-            :id="'file-input-' + entry.id"
-            @change="handleFileUpload($event)"
-          />
         </div>
         <select v-model="entry.role" class="text_pole" @change="update">
           <option>user</option>
@@ -64,11 +57,18 @@
       </div>
     </div>
     <button class="menu_button wide-button" @click="addEntry">添加提示词条目</button>
+    <input
+      ref="fileInputRef"
+      type="file"
+      multiple
+      style="display: none"
+      @change="handleFileUpload($event)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { PromptEntrySchema, type PromptEntry, AttachmentSchema, type Attachment } from './types';
 
 const props = defineProps<{
@@ -76,6 +76,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['update:entries']);
+
+const fileInputRef = ref<HTMLInputElement | null>(null);
 
 const totalTokens = computed(() => {
   return props.entries.reduce((acc, entry) => {
@@ -114,10 +116,7 @@ let currentEntryForFileUpload: PromptEntry | null = null;
 
 function triggerFileInput(entry: PromptEntry) {
   currentEntryForFileUpload = entry;
-  const fileInput = document.getElementById('file-input-' + entry.id);
-  if (fileInput) {
-    fileInput.click();
-  }
+  fileInputRef.value?.click();
 }
 
 async function handleFileUpload(event: Event) {
