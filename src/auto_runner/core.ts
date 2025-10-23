@@ -981,11 +981,21 @@ export async function stopAutomation(options: { skipFinalProcessing?: boolean; u
     if (settings.value.exemptionCount > 0) {
       internalExemptionCounter = settings.value.exemptionCount;
     }
-    const processSuccess = await triggerSscAndProcess();
-    if (processSuccess) {
-      showToast('success', '最终处理完成，脚本已彻底结束。', true);
-    } else {
-      showToast('warning', '最终处理被用户取消，脚本已彻底结束。', true);
+
+    // 关键修复：在最终处理期间，临时将状态恢复为 RUNNING，以满足 triggerSscAndProcess 的前置条件
+    const prevState = state;
+    state = AutomationState.RUNNING;
+
+    try {
+      const processSuccess = await triggerSscAndProcess();
+      if (processSuccess) {
+        showToast('success', '最终处理完成，脚本已彻底结束。', true);
+      } else {
+        showToast('warning', '最终处理被用户取消，脚本已彻底结束。', true);
+      }
+    } finally {
+      // 确保在处理结束后，状态被正确地设置回 IDLE
+      state = AutomationState.IDLE;
     }
   } else {
     showToast('info', '没有需要最终处理的AI消息，脚本已结束。');
