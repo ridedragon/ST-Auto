@@ -628,110 +628,111 @@ export function toggleTrulyAutomatedMode() {
   showToast('info', `“真·自动化”模式已${isTrulyAutomatedMode ? '开启' : '关闭'}`, true);
 }
 
-async function triggerSscAndProcess(): Promise<boolean> {
+async function triggerSscAndProcess(force = false): Promise<boolean> {
+  // 检查豁免条件
+  if (!force && internalExemptionCounter < settings.value.exemptionCount) {
+    showToast(
+      'info',
+      `豁免计数 (${internalExemptionCounter + 1}/${settings.value.exemptionCount})，跳过SSC和一键处理。`,
+    );
+    internalExemptionCounter++;
+    return true; // 跳过，但流程继续
+  }
+
   try {
-    // 检查豁免条件
-    if (internalExemptionCounter < settings.value.exemptionCount) {
-      showToast(
-        'info',
-        `豁免计数 (${internalExemptionCounter}) 小于豁免次数 (${settings.value.exemptionCount})，跳过SSC优化。`,
-      );
-      internalExemptionCounter++;
+    // 只有在不豁免的情况下才执行 SSC 优化
+    const api = (window.parent as any).aiOptimizer;
+    if (!api || typeof api.manualOptimize !== 'function' || typeof api.optimizeText !== 'function') {
+      showToast('warning', '未找到 AI Optimizer API，跳过优化步骤。');
     } else {
-      // 只有在不豁免的情况下才执行 SSC 优化
-      const api = (window.parent as any).aiOptimizer;
-      if (!api || typeof api.manualOptimize !== 'function' || typeof api.optimizeText !== 'function') {
-        showToast('warning', '未找到 AI Optimizer API，跳过优化步骤。');
+      showToast('info', '自动化优化流程已启动...');
+      const sourceContent: string | null = await new Promise(resolve => {
+        api.manualOptimize((content: string | null) => resolve(content));
+      });
+
+      if (!sourceContent) {
+        showToast('info', '在最后一条角色消息中未找到可优化的内容，跳过SSC优化。');
       } else {
-        showToast('info', '自动化优化流程已启动...');
-        const sourceContent: string | null = await new Promise(resolve => {
-          api.manualOptimize((content: string | null) => resolve(content));
-        });
+        // 步骤1: 提取和编辑
+        (window.parent as any).tempPopupText = sourceContent;
+        const extractedPopupContent = `<p>已提取以下内容（可编辑），点击“继续”发送给AI优化：</p><textarea oninput="window.parent.tempPopupText = this.value" id="auto-optimizer-source" class="text_pole" rows="10" style="width: 100%;">${sourceContent}</textarea>`;
 
-        if (!sourceContent) {
-          showToast('info', '在最后一条角色消息中未找到可优化的内容，跳过SSC优化。');
+        let continueStep1: boolean;
+        if (isTrulyAutomatedMode) {
+          showToast('info', '[真·自动化] 自动确认步骤1。');
+          continueStep1 = true;
         } else {
-          // 步骤1: 提取和编辑
-          (window.parent as any).tempPopupText = sourceContent;
-          const extractedPopupContent = `<p>已提取以下内容（可编辑），点击“继续”发送给AI优化：</p><textarea oninput="window.parent.tempPopupText = this.value" id="auto-optimizer-source" class="text_pole" rows="10" style="width: 100%;">${sourceContent}</textarea>`;
-
-          let continueStep1: boolean;
-          if (isTrulyAutomatedMode) {
-            showToast('info', '[真·自动化] 自动确认步骤1。');
-            continueStep1 = true;
-          } else {
-            continueStep1 = await (window.parent as any).SillyTavern.getContext().callGenericPopup(
-              extractedPopupContent,
-              '步骤1: 提取并编辑',
-              '',
-              { okButton: '继续', cancelButton: '取消', wide: true },
-            );
-          }
-
-          const editedSourceContent = (window.parent as any).tempPopupText;
-          delete (window.parent as any).tempPopupText;
-
-          if (!continueStep1) {
-            showToast('info', '自动化流程已由用户在步骤1取消。');
-            return false; // 用户取消
-          }
-          if (state !== AutomationState.RUNNING) return false; // 在弹窗后检查中止状态
-
-          showToast('info', '正在发送给AI优化...');
-
-          // 步骤2: 优化
-          const lastCharMessage = await getLastCharMessage();
-          const systemPrompt = typeof api.getSystemPrompt === 'function' ? api.getSystemPrompt() : '';
-          const optimizedResultText = await api.optimizeText(editedSourceContent, systemPrompt, lastCharMessage);
-
-          if (optimizedResultText === null) {
-            showToast('info', '优化被用户取消。');
-            return false; // 用户取消
-          }
-          if (!optimizedResultText) {
-            throw new Error('AI 未能返回优化后的文本。');
-          }
-
-          // 步骤3: 对比和替换
-          (window.parent as any).tempPopupText = optimizedResultText;
-          const optimizedPopupContent = `
-                      <p><b>原始句子:</b></p>
-                      <textarea class="text_pole" rows="5" style="width: 100%;" readonly>${editedSourceContent}</textarea>
-                      <p><b>优化后句子 (可编辑):</b></p>
-                      <textarea oninput="window.parent.tempPopupText = this.value" id="auto-optimizer-result" class="text_pole" rows="5" style="width: 100%;">${optimizedResultText}</textarea>
-                  `;
-          let userConfirmed: boolean;
-          if (isTrulyAutomatedMode) {
-            showToast('info', '[真·自动化] 自动确认步骤2。');
-            userConfirmed = true;
-          } else {
-            userConfirmed = await (window.parent as any).SillyTavern.getContext().callGenericPopup(
-              optimizedPopupContent,
-              '步骤2: 对比并确认替换',
-              '',
-              { okButton: '替换', cancelButton: '取消', wide: true },
-            );
-          }
-
-          const finalOptimizedText = (window.parent as any).tempPopupText;
-          delete (window.parent as any).tempPopupText;
-
-          if (!userConfirmed) {
-            showToast('info', '替换操作已由用户取消。');
-            return false; // 用户取消
-          }
-          if (state !== AutomationState.RUNNING) return false; // 在第二个弹窗后检查中止状态
-
-          showToast('info', '正在执行SSC替换...');
-          await new Promise<void>(resolve => {
-            api.replaceMessage(editedSourceContent, finalOptimizedText, (newContent: string | null) => {
-              if (newContent) {
-                showToast('success', 'SSC 替换完成！');
-              }
-              resolve();
-            });
-          });
+          continueStep1 = await (window.parent as any).SillyTavern.getContext().callGenericPopup(
+            extractedPopupContent,
+            '步骤1: 提取并编辑',
+            '',
+            { okButton: '继续', cancelButton: '取消', wide: true },
+          );
         }
+
+        const editedSourceContent = (window.parent as any).tempPopupText;
+        delete (window.parent as any).tempPopupText;
+
+        if (!continueStep1) {
+          showToast('info', '自动化流程已由用户在步骤1取消。');
+          return false; // 用户取消
+        }
+        if (state !== AutomationState.RUNNING) return false; // 在弹窗后检查中止状态
+
+        showToast('info', '正在发送给AI优化...');
+
+        // 步骤2: 优化
+        const lastCharMessage = await getLastCharMessage();
+        const systemPrompt = typeof api.getSystemPrompt === 'function' ? api.getSystemPrompt() : '';
+        const optimizedResultText = await api.optimizeText(editedSourceContent, systemPrompt, lastCharMessage);
+
+        if (optimizedResultText === null) {
+          showToast('info', '优化被用户取消。');
+          return false; // 用户取消
+        }
+        if (!optimizedResultText) {
+          throw new Error('AI 未能返回优化后的文本。');
+        }
+
+        // 步骤3: 对比和替换
+        (window.parent as any).tempPopupText = optimizedResultText;
+        const optimizedPopupContent = `
+                    <p><b>原始句子:</b></p>
+                    <textarea class="text_pole" rows="5" style="width: 100%;" readonly>${editedSourceContent}</textarea>
+                    <p><b>优化后句子 (可编辑):</b></p>
+                    <textarea oninput="window.parent.tempPopupText = this.value" id="auto-optimizer-result" class="text_pole" rows="5" style="width: 100%;">${optimizedResultText}</textarea>
+                `;
+        let userConfirmed: boolean;
+        if (isTrulyAutomatedMode) {
+          showToast('info', '[真·自动化] 自动确认步骤2。');
+          userConfirmed = true;
+        } else {
+          userConfirmed = await (window.parent as any).SillyTavern.getContext().callGenericPopup(
+            optimizedPopupContent,
+            '步骤2: 对比并确认替换',
+            '',
+            { okButton: '替换', cancelButton: '取消', wide: true },
+          );
+        }
+
+        const finalOptimizedText = (window.parent as any).tempPopupText;
+        delete (window.parent as any).tempPopupText;
+
+        if (!userConfirmed) {
+          showToast('info', '替换操作已由用户取消。');
+          return false; // 用户取消
+        }
+        if (state !== AutomationState.RUNNING) return false; // 在第二个弹窗后检查中止状态
+
+        showToast('info', '正在执行SSC替换...');
+        await new Promise<void>(resolve => {
+          api.replaceMessage(editedSourceContent, finalOptimizedText, (newContent: string | null) => {
+            if (newContent) {
+              showToast('success', 'SSC 替换完成！');
+            }
+            resolve();
+          });
+        });
       }
     }
 
@@ -977,17 +978,13 @@ export async function stopAutomation(options: { skipFinalProcessing?: boolean; u
 
   const lastMessage = (getChatMessages(-1) || [])[0];
   if (lastMessage && lastMessage.role === 'assistant') {
-    // 强制执行最终处理，绕过豁免计数
-    if (settings.value.exemptionCount > 0) {
-      internalExemptionCounter = settings.value.exemptionCount;
-    }
-
     // 关键修复：在最终处理期间，临时将状态恢复为 RUNNING，以满足 triggerSscAndProcess 的前置条件
     const prevState = state;
     state = AutomationState.RUNNING;
 
     try {
-      const processSuccess = await triggerSscAndProcess();
+      // 强制执行最终处理，忽略豁免计数
+      const processSuccess = await triggerSscAndProcess(true);
       if (processSuccess) {
         showToast('success', '最终处理完成，脚本已彻底结束。', true);
       } else {
