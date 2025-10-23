@@ -430,6 +430,10 @@ function shouldStop(): boolean {
   if (state !== AutomationState.RUNNING) {
     return true;
   }
+  // 如果 totalReplies <= 0，则视为无限次运行
+  if (settings.value.totalReplies <= 0) {
+    return false;
+  }
   if (settings.value.executedCount >= settings.value.totalReplies) {
     showToast('info', '已达到总回复次数，全自动运行结束。', true);
     return true;
@@ -442,7 +446,11 @@ function shouldStop(): boolean {
  */
 async function incrementExecutedCount() {
   settings.value.executedCount++;
-  // 保存操作已通过 watch a
+  // 立即保存以防止在快速连续运行时因刷新设置而丢失状态。
+  // 我们取消任何待处理的防抖保存，并立即执行一次保存。
+  debouncedSave.cancel();
+  const pureSettings = JSON.parse(JSON.stringify(settings.value));
+  replaceVariables(pureSettings, { type: 'script', script_id: getScriptId() });
 }
 
 /**
