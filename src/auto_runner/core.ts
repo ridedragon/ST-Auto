@@ -24,6 +24,7 @@ enum AutomationState {
 
 let state: AutomationState = AutomationState.IDLE;
 let isAutomationRunning = false; // 防止并发执行的锁
+let pendingAutomationRun = false; // 用于处理并发触发的标志
 export const settings = ref<Settings>(SettingsSchema.parse({}));
 let retryCount = 0;
 let internalExemptionCounter = 0; // 新增的、只在内存中的豁免计数器
@@ -740,7 +741,8 @@ async function triggerSscAndProcess(): Promise<boolean> {
 async function runAutomation(isFirstRun = false) {
   // 关键修复：防止并发执行的锁检查
   if (isAutomationRunning) {
-    console.log('[AutoRunner] Automation is already running. Ignoring concurrent trigger.');
+    console.log('[AutoRunner] Automation is already running. Setting pending flag.');
+    pendingAutomationRun = true; // 设置标志，表示有待处理的运行请求
     return;
   }
 
@@ -832,17 +834,23 @@ async function runAutomation(isFirstRun = false) {
     stopAutomation({ skipFinalProcessing: true });
   } finally {
     isAutomationRunning = false; // 释放锁
+
+    // 检查是否有在本次运行时被挂起的运行请求
+    if (pendingAutomationRun) {
+      console.log('[AutoRunner] Processing pending automation run.');
+      pendingAutomationRun = false; // 重置标志
+      // 使用 setTimeout 避免堆栈溢出，并提供一个小的喘息时间
+      setTimeout(() => runAutomation(false), 100);
+    }
   }
 }
 
 // --- 监听主AI消息完成事件 ---
 function onMessageReceived() {
-  // 这里的锁检查是错误的，已移除。
-  // 正确的并发控制在 runAutomation 的入口处。
   if (state === AutomationState.RUNNING) {
-    // 等待一小段时间，确保酒馆完全处理完消息
-    // 后续的运行都不是首次运行
-    setTimeout(() => runAutomation(false), 1000);
+    // 直接尝试运行，runAutomation内部的锁和标志会处理并发
+    // 提供一个小的延迟，以确保酒馆的DOM和其他状态更新完毕
+    setTimeout(() => runAutomation(false), 500);
   }
 }
 
