@@ -42,7 +42,11 @@
           <div class="attachment-list">
             <div v-for="(attachment, attIndex) in entry.attachments" :key="attachment.id" class="attachment-item">
               <span>{{ attachment.name }}</span>
-              <button class="menu_button icon-button" @click="removeAttachment(entry, attIndex)">
+              <button
+                class="menu_button icon-button delete-attachment-btn"
+                title="删除附件"
+                @click="removeAttachment(entry, attIndex)"
+              >
                 <i class="fa-solid fa-times"></i>
               </button>
             </div>
@@ -232,6 +236,14 @@ function drop(targetIndex: number) {
 
 .attachment-button {
   white-space: nowrap;
+}
+
+.delete-attachment-btn i {
+  color: #ff5555;
+}
+
+.delete-attachment-btn:hover i {
+  color: #ff8888;
 }
 
 .wide-button {
