@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import { computed, ref, watch } from 'vue';
 import { z } from 'zod';
+import mammoth from 'mammoth';
 import {
   PromptEntrySchema,
   PromptSetSchema,
@@ -511,6 +512,14 @@ async function callSubAI(): Promise<string | null | typeof ABORT_SIGNAL> {
         // Add attachments
         if (entry.attachments && entry.attachments.length > 0) {
           for (const attachment of entry.attachments) {
+            const binaryString = atob(attachment.content);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            const arrayBuffer = bytes.buffer;
+
             if (attachment.type.startsWith('image/')) {
               contentParts.push({
                 type: 'image_url',
@@ -518,10 +527,22 @@ async function callSubAI(): Promise<string | null | typeof ABORT_SIGNAL> {
                   url: `data:${attachment.type};base64,${attachment.content}`,
                 },
               });
-            } else {
-              // For non-image files, append their content as text
+            } else if (
+              attachment.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ) {
               try {
-                const decodedContent = atob(attachment.content);
+                const result = await mammoth.extractRawText({ arrayBuffer });
+                contentParts.push(
+                  `\n\n--- Attachment: ${attachment.name} ---\n${result.value}\n--- End Attachment ---`,
+                );
+              } catch (e) {
+                console.error(`Error extracting text from docx ${attachment.name}:`, e);
+              }
+            } else {
+              // For other non-image files (like text, json), decode and append as text
+              try {
+                const blob = new Blob([arrayBuffer], { type: attachment.type });
+                const decodedContent = await new Response(blob).text();
                 contentParts.push(
                   `\n\n--- Attachment: ${attachment.name} ---\n${decodedContent}\n--- End Attachment ---`,
                 );
