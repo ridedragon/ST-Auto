@@ -40,12 +40,18 @@
         <textarea v-model="entry.content" class="text_pole" placeholder="提示词内容..." @input="update"></textarea>
         <div class="attachments-section">
           <div class="attachment-list">
-            <div v-for="(attachment, attIndex) in entry.attachments" :key="attachment.id" class="attachment-item">
+            <div
+              v-for="(attachment, attIndex) in entry.attachments"
+              :key="attachment.id"
+              class="attachment-item"
+              title="点击查看附件"
+              @click.stop="showAttachment(attachment)"
+            >
               <span class="attachment-name">{{ attachment.name }}</span>
               <button
                 class="menu_button icon-button delete-attachment-btn"
                 title="删除附件"
-                @click="removeAttachment(entry, attIndex)"
+                @click.stop="removeAttachment(entry, attIndex)"
               >
                 <i class="fa-solid fa-times"></i>
               </button>
@@ -161,6 +167,28 @@ function removeAttachment(entry: PromptEntry, index: number) {
   }
 }
 
+function showAttachment(attachment: Attachment) {
+  const { name, type, content } = attachment;
+  const context = (window.parent as any).SillyTavern.getContext();
+
+  if (type.startsWith('image/')) {
+    const imageUrl = `data:${type};base64,${content}`;
+    const imageHtml = `<div style="text-align: center;"><img src="${imageUrl}" style="max-width: 100%; max-height: 70vh; border-radius: 8px;"></div>`;
+    context.callGenericPopup(imageHtml, '查看图片', name, { okButton: '关闭', wide: true });
+  } else if (type.startsWith('text/')) {
+    try {
+      const textContent = atob(content);
+      const textHtml = `<textarea class="text_pole" rows="20" style="width: 100%;" readonly>${textContent}</textarea>`;
+      context.callGenericPopup(textHtml, '查看文本', name, { okButton: '关闭', wide: true });
+    } catch (e) {
+      console.error('解码附件内容时出错:', e);
+      toastr.error('无法解码文本文件内容。');
+    }
+  } else {
+    toastr.info(`不支持预览文件类型 "${type}"。`);
+  }
+}
+
 // Drag and Drop
 let draggedIndex = -1;
 
@@ -234,6 +262,12 @@ function drop(targetIndex: number) {
   font-size: 0.9em;
   max-width: 100%; /* Ensure the item itself doesn't overflow its container */
   overflow: hidden; /* Hide anything that might still overflow */
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.attachment-item:hover {
+  background-color: var(--bg3);
 }
 
 .attachment-name {
