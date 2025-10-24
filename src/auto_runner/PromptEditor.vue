@@ -171,21 +171,45 @@ function showAttachment(attachment: Attachment) {
   const { name, type, content } = attachment;
   const context = (window.parent as any).SillyTavern.getContext();
 
+  // 将 base64 字符串转换为 Uint8Array
+  const binaryString = atob(content);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  const blob = new Blob([bytes], { type: type });
+  const fileUrl = URL.createObjectURL(blob);
+
   if (type.startsWith('image/')) {
-    const imageUrl = `data:${type};base64,${content}`;
-    const imageHtml = `<div style="text-align: center;"><img src="${imageUrl}" style="max-width: 100%; max-height: 70vh; border-radius: 8px;"></div>`;
+    const imageHtml = `<div style="text-align: center;"><img src="${fileUrl}" style="max-width: 100%; max-height: 70vh; border-radius: 8px;"></div>`;
     context.callGenericPopup(imageHtml, '查看图片', name, { okButton: '关闭', wide: true });
-  } else if (type.startsWith('text/')) {
-    try {
-      const textContent = atob(content);
+    // 弹窗关闭后释放URL
+    setTimeout(() => URL.revokeObjectURL(fileUrl), 500);
+  } else if (type.startsWith('text/') || type === 'application/json') {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const textContent = e.target?.result as string;
       const textHtml = `<textarea class="text_pole" rows="20" style="width: 100%;" readonly>${textContent}</textarea>`;
       context.callGenericPopup(textHtml, '查看文本', name, { okButton: '关闭', wide: true });
-    } catch (e) {
-      console.error('解码附件内容时出错:', e);
-      toastr.error('无法解码文本文件内容。');
-    }
+      URL.revokeObjectURL(fileUrl); // 释放URL
+    };
+    reader.onerror = () => {
+      toastr.error('读取文件内容失败。');
+      URL.revokeObjectURL(fileUrl); // 释放URL
+    };
+    // 使用 readAsText 并指定 UTF-8 编码
+    reader.readAsText(blob, 'UTF-8');
+  } else if (type === 'application/pdf') {
+    const pdfHtml = `<iframe src="${fileUrl}" style="width: 100%; height: 80vh;" frameborder="0"></iframe>`;
+    context.callGenericPopup(pdfHtml, '查看PDF', name, { okButton: '关闭', wide: true });
+    // PDF的URL不能立即释放，因为iframe需要它。可以在弹窗关闭时释放，但目前没有好的回调，暂时依赖浏览器管理
+  } else if (type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    toastr.warning('不支持直接预览 .docx 文件。');
+    URL.revokeObjectURL(fileUrl);
   } else {
     toastr.info(`不支持预览文件类型 "${type}"。`);
+    URL.revokeObjectURL(fileUrl);
   }
 }
 
