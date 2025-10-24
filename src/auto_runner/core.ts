@@ -27,6 +27,7 @@ let isAutomationRunning = false; // 防止并发执行的锁
 let pendingAutomationRun = false; // 用于处理并发触发的标志
 export const settings = ref<Settings>(SettingsSchema.parse({}));
 let retryCount = 0;
+let mainAiRegenRetryCount = 0; // 用于主AI空消息重试的计数器
 let internalExemptionCounter = 0; // 新增的、只在内存中的豁免计数器
 let isTrulyAutomatedMode = false; // “真·自动化”模式开关
 
@@ -842,12 +843,33 @@ async function runAutomation(isFirstRun = false) {
 
     if (lastMessage.role === 'user') {
       // --- 分支 A: 最后一条是用户消息 ---
+      mainAiRegenRetryCount = 0; // 用户发言，重置主AI空消息重试计数
       showToast('info', '检测到用户消息，触发主AI生成...');
       await triggerSlash('/trigger await=true');
       // 主AI响应完成后，绑定的 tavern_events.MESSAGE_RECEIVED 事件会再次触发 runAutomation
       // 不在这里增加计数，因为这不是一个完整的循环
     } else {
       // --- 分支 B: 最后一条是AI消息 ---
+
+      // 首先，检查AI消息是否为空
+      if (!lastMessage.message || lastMessage.message.trim() === '') {
+        if (mainAiRegenRetryCount >= settings.value.maxRetries) {
+          showToast('error', `主AI多次返回空消息，已达到最大重试次数 (${settings.value.maxRetries})，自动化已停止。`, true);
+          stopAutomation({ skipFinalProcessing: true });
+          return; // finally 将释放锁
+        }
+        mainAiRegenRetryCount++;
+        showToast(
+          'warning',
+          `主AI返回空消息，将自动重新生成 (尝试 ${mainAiRegenRetryCount}/${settings.value.maxRetries})。`,
+          true,
+        );
+        await triggerSlash('/regenerate await=true');
+        return; // 新消息将再次触发循环
+      }
+
+      // AI消息非空，重置计数器并继续
+      mainAiRegenRetryCount = 0;
       showToast('info', '检测到AI消息，开始完整循环...');
 
       // 步骤 1 & 2: SSC 和 一键处理
@@ -857,48 +879,53 @@ async function runAutomation(isFirstRun = false) {
         return; // finally 将释放锁
       }
 
-      // 关键修复：在长时间处理后，再次检查状态，确保在调用副AI之前没有被终止
+      // 关键修复：在长时间处理后，再次检查状态
       if (state !== AutomationState.RUNNING) {
         console.log('[AutoRunner] Automation was stopped during SSC/process phase. Aborting sub AI call.');
         return; // finally 将释放锁
       }
 
-      // 步骤 3: 发送给副AI，并包含重试逻辑
-      let subAiReply: string | null = null;
+      // 步骤 3 & 4: 发送给副AI，处理并发送（包含对处理后空消息的重试逻辑）
       let subAiRetryCount = 0;
-      while (subAiRetryCount <= settings.value.maxRetries) {
-        const result = await callSubAI();
+      let finalReplyToSend: string | null = null;
 
-        if (result === ABORT_SIGNAL) {
+      while (subAiRetryCount <= settings.value.maxRetries) {
+        const subAiRawReply = await callSubAI();
+
+        if (subAiRawReply === ABORT_SIGNAL) {
           stopAutomation({ skipFinalProcessing: true, userCancelled: true });
           return; // finally 将释放锁
         }
 
-        if (result) {
-          subAiReply = result;
-          break;
+        if (subAiRawReply) {
+          const processedReply = processSubAiResponse(subAiRawReply);
+          console.log('处理后的回复:', processedReply);
+
+          // 检查处理后的回复是否有效
+          if (processedReply && processedReply.trim() !== '') {
+            finalReplyToSend = processedReply;
+            break; // 成功，跳出循环
+          } else {
+            showToast('warning', '副AI返回的消息处理后为空，将重试...');
+          }
         }
 
         subAiRetryCount++;
         if (subAiRetryCount > settings.value.maxRetries) {
-          showToast('error', `调用副AI已达到最大重试次数 (${settings.value.maxRetries})，自动化已停止。`, true);
+          showToast('error', `调用副AI并获得有效回复已达到最大重试次数 (${settings.value.maxRetries})，自动化已停止。`, true);
           stopAutomation({ skipFinalProcessing: true });
           return; // finally 将释放锁
         }
-        showToast('warning', `调用副AI失败，将在5秒后重试 (${subAiRetryCount}/${settings.value.maxRetries})`);
+        showToast('warning', `调用副AI失败或回复无效，将在5秒后重试 (${subAiRetryCount}/${settings.value.maxRetries})`);
         await delay(5000);
       }
 
-      if (!subAiReply) {
-        return; // 相关的停止逻辑已在循环内部处理
+      if (!finalReplyToSend) {
+        return; // 如果循环结束了还没有有效回复，则停止当前循环
       }
 
-      // 步骤 4: 处理副AI回复并以用户身份发送
-      const processedReply = processSubAiResponse(subAiReply);
-      console.log('处理后的回复:', processedReply);
-
       showToast('info', '以用户身份发送处理后的消息...');
-      await triggerSlash(`/send ${processedReply}`);
+      await triggerSlash(`/send ${finalReplyToSend}`);
       await triggerSlash('/trigger await=true'); // 触发主AI生成
     }
 
@@ -980,6 +1007,7 @@ async function startAutomation() {
   showToast('success', '全自动运行已启动！', true);
   state = AutomationState.RUNNING;
   retryCount = 0;
+  mainAiRegenRetryCount = 0; // 重置主AI重试计数器
   internalExemptionCounter = 0; // 重置内部豁免计数器
 
   // 3. 在内存中重置总执行次数，并异步保存它以更新UI（无需等待）
