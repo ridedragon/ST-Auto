@@ -12,7 +12,11 @@
   ],
   "devDependencies": {
     "@eslint/js": "^9.38.0",
+<<<<<<< HEAD
     "@tailwindcss/postcss": "^4.1.16",
+=======
+    "@tailwindcss/postcss": "^4.1.15",
+>>>>>>> 5b620b02062ce110cd5bc721807d48ca3f2bd2cf
     "@types/jquery": "^3.5.33",
     "@types/jqueryui": "^1.12.24",
     "@types/lodash": "^4.17.20",
@@ -51,7 +55,11 @@
     "sass-loader": "^16.0.6",
     "socket.io": "^4.8.1",
     "style-loader": "^4.0.0",
+<<<<<<< HEAD
     "tailwindcss": "^4.1.16",
+=======
+    "tailwindcss": "^4.1.15",
+>>>>>>> 5b620b02062ce110cd5bc721807d48ca3f2bd2cf
     "terser-webpack-plugin": "^5.3.14",
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",
@@ -77,11 +85,16 @@
     "gsap": "^3.13.0",
     "jquery": "^3.7.1",
     "jqueryui": "^1.11.1",
+    "klona": "^2.0.6",
     "lodash": "^4.17.21",
     "pinia": "^3.0.3",
     "pixi.js": "^8.14.0",
     "toastr": "^2.1.4",
     "vue": "^3.5.22",
+<<<<<<< HEAD
+=======
+    "vue-final-modal": "^4.5.5",
+>>>>>>> 5b620b02062ce110cd5bc721807d48ca3f2bd2cf
     "vue-router": "^4.6.3",
     "vue3-pixi": "1.0.0-beta.3",
     "yaml": "^2.8.1",
