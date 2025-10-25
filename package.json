@@ -77,12 +77,17 @@
     "gsap": "^3.13.0",
     "jquery": "^3.7.1",
     "jqueryui": "^1.11.1",
+    "klona": "^2.0.6",
     "lodash": "^4.17.21",
     "mammoth": "^1.11.0",
     "pinia": "^3.0.3",
     "pixi.js": "^8.14.0",
     "toastr": "^2.1.4",
     "vue": "^3.5.22",
+<<<<<<< HEAD
+=======
+    "vue-final-modal": "^4.5.5",
+>>>>>>> fdcb3fcc413e2f1fe11e10b448df6b0e292f5b04
     "vue-router": "^4.6.3",
     "vue3-pixi": "1.0.0-beta.3",
     "yaml": "^2.8.1",
