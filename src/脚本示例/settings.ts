@@ -5,12 +5,12 @@ const Settings = z
   .prefault({});
 
 export const useSettingsStore = defineStore('settings', () => {
-  const settings = ref(validateInplace(Settings, getVariables({ type: 'script', script_id: getScriptId() })));
+  const settings = ref(Settings.parse(getVariables({ type: 'script', script_id: getScriptId() })));
 
   watch(
     settings,
     new_settings => {
-      insertOrAssignVariables(toRaw(new_settings), { type: 'script', script_id: getScriptId() });
+      insertOrAssignVariables(klona(new_settings), { type: 'script', script_id: getScriptId() });
     },
     { immediate: true, deep: true },
   );
@@ -18,6 +18,7 @@ export const useSettingsStore = defineStore('settings', () => {
     settings,
   };
 });
+<<<<<<< HEAD
 
 function validateInplace<T>(schema: z.ZodType<T>, data: unknown): T {
   const result = parsePrettified(schema, data);
@@ -31,3 +32,5 @@ function parsePrettified<T>(schema: z.ZodType<T>, data: unknown): T {
   }
   return result.data;
 }
+=======
+>>>>>>> 63e1460f92c8fc4624135436a8608180d0266e7f
