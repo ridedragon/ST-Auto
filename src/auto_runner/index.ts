@@ -41,7 +41,7 @@ function startObserver() {
     }
   });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(window.parent.document.body, { childList: true, subtree: true });
 }
 
 $(async () => {
