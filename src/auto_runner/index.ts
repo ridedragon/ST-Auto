@@ -1,9 +1,12 @@
 import { start, stop, refreshSettings } from './core';
 import { initPanel, destroyPanel } from './panel';
 
-// --- Polling Logic ---
+// --- Persistent Polling Logic ---
 let mvuCheckInterval: number | null = null;
-let lastSeenMvuInstance: any = null;
+
+// A key for the property on the parent window to store the last seen MVU instance.
+// Using a unique key to avoid conflicts.
+const LAST_SEEN_MVU_KEY = '__auto_run_last_seen_mvu';
 
 async function rebuild() {
   console.log('[AutoRunner] Detected MVU instance change, rebuilding...');
@@ -23,19 +26,26 @@ async function rebuild() {
 }
 
 function startMvuMonitor() {
-  // Clear any existing interval
+  // Clear any existing interval from a previous, non-destroyed instance
   if (mvuCheckInterval) {
     clearInterval(mvuCheckInterval);
   }
 
-  // Immediately check and set the initial instance
-  lastSeenMvuInstance = (window.parent as any).Mvu;
+  // Initialize the persistent state on the parent window if it doesn't exist
+  if (!(window.parent as any)[LAST_SEEN_MVU_KEY]) {
+    (window.parent as any)[LAST_SEEN_MVU_KEY] = (window.parent as any).Mvu;
+  }
 
   mvuCheckInterval = setInterval(() => {
     const currentMvu = (window.parent as any).Mvu;
-    // Check if Mvu exists and if it's a new instance
-    if (currentMvu && currentMvu !== lastSeenMvuInstance) {
-      lastSeenMvuInstance = currentMvu; // Update immediately to prevent re-triggering
+    const lastSeenMvu = (window.parent as any)[LAST_SEEN_MVU_KEY];
+
+    // Check if Mvu exists and if its instance is different from the one we last stored
+    if (currentMvu && currentMvu !== lastSeenMvu) {
+      // CRITICAL: Update the stored instance on the parent window immediately
+      (window.parent as any)[LAST_SEEN_MVU_KEY] = currentMvu;
+      
+      // Trigger the rebuild
       rebuild();
     }
   }, 1000); // Check every second
@@ -46,6 +56,9 @@ function stopMvuMonitor() {
     clearInterval(mvuCheckInterval);
     mvuCheckInterval = null;
   }
+  // Optional: Clean up the property on the parent window when the script is truly unloaded,
+  // though it's generally safe to leave it.
+  // delete (window.parent as any)[LAST_SEEN_MVU_KEY];
 }
 
 // --- Main Lifecycle ---
@@ -56,7 +69,7 @@ $(async () => {
   initPanel();
   start();
 
-  // 2. Start monitoring for MVU changes
+  // 2. Start monitoring for MVU changes using the persistent state method
   startMvuMonitor();
   
   // 3. Initial load toast

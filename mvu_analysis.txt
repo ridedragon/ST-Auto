@@ -1,0 +1,31 @@
+# MVU 脚本生命周期与重建机制分析
+
+## 1. 问题描述
+`auto-run` 脚本无法在 MVU 脚本重建时（如切换角色卡、创建新聊天）同步重建。
+
+## 2. 核心发现
+通过分析 MVU 源码，特别是 `main.ts` 和 `panel.ts`，得出以下结论：
+- MVU 脚本本身没有复杂的内部重建逻辑。
+- 其能在切换角色后重新加载，是因为 Tavern Helper 会完全 **销毁并重新执行** 整个脚本的 iframe。
+- `[MVU]脚本加载成功` 的 `toastr` 通知，是其初始化流程的最后一步。
+- 在显示通知之前，`exportGlobals()` 函数会创建一个新的 `Mvu` 对象实例，并将其挂载到 `window.parent.Mvu` 上。
+
+## 3. 之前方案失败的根本原因
+我之前的所有方案（DOM 监听、事件监听、简单的实例轮询）都失败了，根本原因在于 **`auto-run` 脚本的 iframe 同样被销毁和重建了**。
+
+这导致：
+- **状态丢失**：在 `auto-run` 脚本内部用 `let` 或 `const` 定义的任何变量（如 `lastSeenMvuInstance` 或 `setInterval` 的 ID）都会在 iframe 销毁时丢失。
+- **错误的初始状态**：当 `auto-run` 的新 iframe 被创建时，它内部的 `lastSeenMvuInstance` 变量会被重新初始化。它会获取 **当前** 的 `window.parent.Mvu` 实例作为它的“初始值”。此时，MVU 可能已经完成了重建，所以 `auto-run` 看到的是一个“新”的实例，但它却认为这是“旧”的实例，导致 `currentMvu !== lastSeenMvuInstance` 的比较永远为 `false`。
+
+## 4. 最终解决方案的逻辑
+为了解决状态丢失的问题，必须使用一个 **跨越 iframe 生命周期的持久化存储** 来记录上一次看到的 MVU 实例。`window.parent` 对象是实现这一点的完美载体。
+
+最终方案步骤：
+1.  在 `auto-run` 脚本加载时，从 `window.parent` 上读取一个自定义的持久化变量，例如 `window.parent.__auto_run_last_seen_mvu`。
+2.  使用 `setInterval` 定期轮询，获取当前的 `window.parent.Mvu` 实例。
+3.  将当前的 `Mvu` 实例与存储在 `window.parent.__auto_run_last_seen_mvu` 中的旧实例进行 **全等比较 (`!==`)**。
+4.  如果两者不相等，说明 MVU 已经重建。此时：
+    a. 触发 `auto-run` 自身的 `rebuild()` 逻辑。
+    b. **立即更新**持久化变量：`window.parent.__auto_run_last_seen_mvu = window.parent.Mvu`。这一步至关重要，它将新的 MVU 实例保存起来，为下一次的比较做好了准备，并防止了无限重建循环。
+
+这个方案对脚本加载顺序不敏感，并且能够正确处理 iframe 销毁和重建带来的状态丢失问题，因此是目前最可靠的解决方案。
