@@ -16,10 +16,7 @@ async function rebuild() {
   initPanel();
   start();
 
-  toastr.info(
-    `构建信息: ${__BUILD_DATE__ ?? 'Unknown'} (${__COMMIT_ID__ ?? 'Unknown'})`,
-    '[AUTO]脚本加载成功'
-  );
+  toastr.info(`构建信息: ${__BUILD_DATE__ ?? 'Unknown'} (${__COMMIT_ID__ ?? 'Unknown'})`, '[AUTO]脚本加载成功');
 }
 
 function startMvuMonitor() {
@@ -45,17 +42,16 @@ function startMvuMonitor() {
 
     // If we reach here, it means MVU has been rebuilt.
     // It's either a new instance without our ID, or an old one with a different ID.
-    
+
     // Generate a new unique ID for this new instance
     const newId = Date.now().toString(36) + Math.random().toString(36).substring(2);
     currentMvu.__auto_run_instance_id = newId;
-    
+
     // Store the new ID in localStorage
     localStorage.setItem(MVU_ID_KEY, newId);
 
     // And trigger the rebuild of our script
     rebuild();
-
   }, 1000); // Check every second
 }
 
@@ -76,18 +72,15 @@ $(async () => {
 
   // 2. Start monitoring for MVU changes using the persistent state method
   startMvuMonitor();
-  
+
   // 3. Initial load toast
-  toastr.info(
-    `构建信息: ${__BUILD_DATE__ ?? 'Unknown'} (${__COMMIT_ID__ ?? 'Unknown'})`,
-    '[AUTO]脚本加载成功'
-  );
+  toastr.info(`构建信息: ${__BUILD_DATE__ ?? 'Unknown'} (${__COMMIT_ID__ ?? 'Unknown'})`, '[AUTO]脚本加载成功');
 });
 
 $(window).on('pagehide', () => {
   // Stop the monitor when the script unloads
   stopMvuMonitor();
-  
+
   // Standard cleanup
   destroyPanel();
   stop();
