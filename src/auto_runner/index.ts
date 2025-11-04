@@ -1,12 +1,9 @@
 import { start, stop, refreshSettings } from './core';
 import { initPanel, destroyPanel } from './panel';
 
-// --- Persistent Polling Logic ---
+// --- localStorage-based Persistent Polling Logic ---
 let mvuCheckInterval: number | null = null;
-
-// A key for the property on the parent window to store the last seen MVU instance.
-// Using a unique key to avoid conflicts.
-const LAST_SEEN_MVU_KEY = '__auto_run_last_seen_mvu';
+const MVU_ID_KEY = '__auto_run_last_seen_mvu_id';
 
 async function rebuild() {
   console.log('[AutoRunner] Detected MVU instance change, rebuilding...');
@@ -31,23 +28,34 @@ function startMvuMonitor() {
     clearInterval(mvuCheckInterval);
   }
 
-  // Initialize the persistent state on the parent window if it doesn't exist
-  if (!(window.parent as any)[LAST_SEEN_MVU_KEY]) {
-    (window.parent as any)[LAST_SEEN_MVU_KEY] = (window.parent as any).Mvu;
-  }
-
   mvuCheckInterval = setInterval(() => {
     const currentMvu = (window.parent as any).Mvu;
-    const lastSeenMvu = (window.parent as any)[LAST_SEEN_MVU_KEY];
-
-    // Check if Mvu exists and if its instance is different from the one we last stored
-    if (currentMvu && currentMvu !== lastSeenMvu) {
-      // CRITICAL: Update the stored instance on the parent window immediately
-      (window.parent as any)[LAST_SEEN_MVU_KEY] = currentMvu;
-      
-      // Trigger the rebuild
-      rebuild();
+    if (!currentMvu) {
+      // MVU is not loaded yet, do nothing.
+      return;
     }
+
+    const lastSeenId = localStorage.getItem(MVU_ID_KEY);
+    const currentInstanceId = currentMvu.__auto_run_instance_id;
+
+    if (currentInstanceId && currentInstanceId === lastSeenId) {
+      // The instance is the same one we've already processed. Do nothing.
+      return;
+    }
+
+    // If we reach here, it means MVU has been rebuilt.
+    // It's either a new instance without our ID, or an old one with a different ID.
+    
+    // Generate a new unique ID for this new instance
+    const newId = Date.now().toString(36) + Math.random().toString(36).substring(2);
+    currentMvu.__auto_run_instance_id = newId;
+    
+    // Store the new ID in localStorage
+    localStorage.setItem(MVU_ID_KEY, newId);
+
+    // And trigger the rebuild of our script
+    rebuild();
+
   }, 1000); // Check every second
 }
 
@@ -56,9 +64,6 @@ function stopMvuMonitor() {
     clearInterval(mvuCheckInterval);
     mvuCheckInterval = null;
   }
-  // Optional: Clean up the property on the parent window when the script is truly unloaded,
-  // though it's generally safe to leave it.
-  // delete (window.parent as any)[LAST_SEEN_MVU_KEY];
 }
 
 // --- Main Lifecycle ---
