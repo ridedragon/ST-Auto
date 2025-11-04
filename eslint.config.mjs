@@ -16,6 +16,15 @@ export default [
   ...ts.configs.recommended,
   importx.flatConfigs.recommended,
   importx.flatConfigs.typescript,
+  {
+    settings: {
+      'import-x/resolver': {
+        typescript: true,
+        node: true,
+      },
+      'import-x/ignore': ['https://.*'],
+    },
+  },
   ...vue.configs['flat/recommended'],
   pinia.configs['recommended-flat'],
   {
@@ -43,6 +52,7 @@ export default [
         parser: tsParser,
         ecmaVersion: 'latest',
         sourceType: 'module',
+        tsconfigRootDir: import.meta.dirname,
       },
       ecmaVersion: 'latest',
       sourceType: 'module',

@@ -1,3 +1,6 @@
+import 'https://gcore.jsdelivr.net/gh/ridedragon/ST-Auto@f35ab9e/dist/auto_runner/index.js';
+import 'https://testingcf.jsdelivr.net/gh/MagicalAstrogy/MagVarUpdate@beta/artifact/bundle.js';
+
 // ==UserScript==
 // @name         触发AI文本优化助手
 // @version      1.1
@@ -74,45 +77,45 @@
 
 // --- “终止副ai请求” 按钮 ---
 (function () {
-    'use strict';
+  'use strict';
 
-    const buttonName = '终止副ai请求';
+  const buttonName = '终止副ai请求';
 
-    // 注册按钮点击事件
-    eventOn(getButtonEvent(buttonName), async () => {
-        try {
-            toastr.info('正在尝试终止副AI的请求...');
+  // 注册按钮点击事件
+  eventOn(getButtonEvent(buttonName), async () => {
+    try {
+      toastr.info('正在尝试终止副AI的请求...');
 
-            // 等待 auto_runner 的核心脚本加载完成
-            await waitGlobalInitialized('AutoRunnerCore');
-            const core = window.AutoRunnerCore;
+      // 等待 auto_runner 的核心脚本加载完成
+      await waitGlobalInitialized('AutoRunnerCore');
+      const core = window.AutoRunnerCore;
 
-            // 检查核心对象和中断函数是否存在
-            if (core && typeof core.abortSubAICall === 'function') {
-                // 调用核心脚本提供的中断函数
-                core.abortSubAICall();
-                // 核心函数内部应该会处理通知，这里不再重复发送
-            } else {
-                toastr.error('无法访问自动化运行脚本的核心功能 (AutoRunnerCore.abortSubAICall)。');
-                console.error('AutoRunnerCore 或 abortSubAICall 未在全局范围中找到。');
-            }
-        } catch (error) {
-            console.error(`[${buttonName}] 脚本出错:`, error);
-            toastr.error('执行终止脚本时发生错误，请按F12查看控制台。');
-        }
-    });
+      // 检查核心对象和中断函数是否存在
+      if (core && typeof core.abortSubAICall === 'function') {
+        // 调用核心脚本提供的中断函数
+        core.abortSubAICall();
+        // 核心函数内部应该会处理通知，这里不再重复发送
+      } else {
+        toastr.error('无法访问自动化运行脚本的核心功能 (AutoRunnerCore.abortSubAICall)。');
+        console.error('AutoRunnerCore 或 abortSubAICall 未在全局范围中找到。');
+      }
+    } catch (error) {
+      console.error(`[${buttonName}] 脚本出错:`, error);
+      toastr.error('执行终止脚本时发生错误，请按F12查看控制台。');
+    }
+  });
 
-    // 自动将按钮添加到UI
-    (async function () {
-        try {
-            const scriptId = getScriptId();
-            if (scriptId) {
-                appendInexistentScriptButtons(scriptId, [{ name: buttonName, visible: true }]);
-            }
-        } catch (e) {
-            console.log(`无法自动添加“${buttonName}”按钮。请在脚本设置中手动添加。`);
-        }
-    })();
+  // 自动将按钮添加到UI
+  (async function () {
+    try {
+      const scriptId = getScriptId();
+      if (scriptId) {
+        appendInexistentScriptButtons(scriptId, [{ name: buttonName, visible: true }]);
+      }
+    } catch (e) {
+      console.log(`无法自动添加“${buttonName}”按钮。请在脚本设置中手动添加。`);
+    }
+  })();
 })();
 
 (function () {
@@ -302,16 +305,15 @@
       }
     }
 
-
     // --- 辅助函数 ---
     // --- 辅助函数 ---
 
     // 计算字符串中句子编号的数量 (例如 "1. xxx 2. xxx")
     function countSentenceNumbers(text) {
-        if (!text) return 0;
-        // 匹配以 "数字."、"数字、" 或 "数字，" 开头的行，允许前面有空格
-        const matches = text.match(/^[ \t]*\d+[.,、．]/gm);
-        return matches ? matches.length : 0;
+      if (!text) return 0;
+      // 匹配以 "数字."、"数字、" 或 "数字，" 开头的行，允许前面有空格
+      const matches = text.match(/^[ \t]*\d+[.,、．]/gm);
+      return matches ? matches.length : 0;
     }
 
     async function getLastCharMessage() {
@@ -395,92 +397,91 @@
 })();
 
 (function () {
-    'use strict';
+  'use strict';
 
-    const newButtonName = '一键处理';
+  const newButtonName = '一键处理';
 
-    // 注册按钮点击事件
-    eventOn(getButtonEvent(newButtonName), async () => {
-        toastr.info('处理中⚙️...');
+  // 注册按钮点击事件
+  eventOn(getButtonEvent(newButtonName), async () => {
+    toastr.info('处理中⚙️...');
 
-        try {
-            // 步骤 1: 去除换行标签 (不弹窗)
-            const messages = getChatMessages(-1);
-            if (!messages || messages.length === 0) {
-                toastr.warning('无法找到最后一条消息。');
-                return;
-            }
-            const lastMessage = messages[0];
-            const messageId = lastMessage.message_id;
-            const originalContent = lastMessage.message;
-            const findRegex = /<\/?br\b[^>]*>/gi;
-            const replaceString = '\n';
+    try {
+      // 步骤 1: 去除换行标签 (不弹窗)
+      const messages = getChatMessages(-1);
+      if (!messages || messages.length === 0) {
+        toastr.warning('无法找到最后一条消息。');
+        return;
+      }
+      const lastMessage = messages[0];
+      const messageId = lastMessage.message_id;
+      const originalContent = lastMessage.message;
+      const findRegex = /<\/?br\b[^>]*>/gi;
+      const replaceString = '\n';
 
-            if (findRegex.test(originalContent)) {
-                const newContent = originalContent.replace(findRegex, replaceString);
-                // 更新消息，但不弹出单独的成功提示
-                await setChatMessages([{ message_id: messageId, message: newContent }]);
-                console.log('[一键处理] 已移除<br>标签。');
-            } else {
-                console.log('[一键处理] 未找到<br>标签，跳过移除步骤。');
-            }
+      if (findRegex.test(originalContent)) {
+        const newContent = originalContent.replace(findRegex, replaceString);
+        // 更新消息，但不弹出单独的成功提示
+        await setChatMessages([{ message_id: messageId, message: newContent }]);
+        console.log('[一键处理] 已移除<br>标签。');
+      } else {
+        console.log('[一键处理] 未找到<br>标签，跳过移除步骤。');
+      }
 
-            // 步骤 2: 触发 "重新读取初始变量" 按钮的功能
-            console.log('[一键处理] 正在触发 "重新读取初始变量"...');
-            await eventEmit(getButtonEvent('重新读取初始变量'));
-            console.log('[一键处理] "重新读取初始变量" 已完成。');
+      // 步骤 2: 触发 "重新读取初始变量" 按钮的功能
+      console.log('[一键处理] 正在触发 "重新读取初始变量"...');
+      await eventEmit(getButtonEvent('重新读取初始变量'));
+      console.log('[一键处理] "重新读取初始变量" 已完成。');
 
-            // 步骤 3: 触发 "重新处理变量" 按钮的功能
-            console.log('[一键处理] 正在触发 "重新处理变量"...');
-            await eventEmit(getButtonEvent('重新处理变量'));
-            console.log('[一键处理] "重新处理变量" 已完成。');
+      // 步骤 3: 触发 "重新处理变量" 按钮的功能
+      console.log('[一键处理] 正在触发 "重新处理变量"...');
+      await eventEmit(getButtonEvent('重新处理变量'));
+      console.log('[一键处理] "重新处理变量" 已完成。');
 
-            toastr.success('处理完成😘');
+      toastr.success('处理完成😘');
+    } catch (error) {
+      console.error(`[${newButtonName}] 脚本出错:`, error);
+      toastr.error('执行一键处理脚本时发生错误，请按F12查看控制台。');
+    }
+  });
 
-        } catch (error) {
-            console.error(`[${newButtonName}] 脚本出错:`, error);
-            toastr.error('执行一键处理脚本时发生错误，请按F12查看控制台。');
-        }
-    });
-
-    // 自动将按钮添加到UI
-    (async function () {
-        try {
-            const scriptId = getScriptId();
-            if (scriptId) {
-                // 使用 appendInexistentScriptButtons 以免重复添加
-                appendInexistentScriptButtons(scriptId, [{ name: newButtonName, visible: true }]);
-            }
-        } catch (e) {
-            // 在非脚本库环境中，这会失败，是正常现象
-            console.log(`无法自动添加“${newButtonName}”按钮。请在脚本设置中手动添加。`);
-        }
-    })();
+  // 自动将按钮添加到UI
+  (async function () {
+    try {
+      const scriptId = getScriptId();
+      if (scriptId) {
+        // 使用 appendInexistentScriptButtons 以免重复添加
+        appendInexistentScriptButtons(scriptId, [{ name: newButtonName, visible: true }]);
+      }
+    } catch (e) {
+      // 在非脚本库环境中，这会失败，是正常现象
+      console.log(`无法自动添加“${newButtonName}”按钮。请在脚本设置中手动添加。`);
+    }
+  })();
 })();
 
 // --- “全自动运行” 按钮 ---
 (function () {
-    'use strict';
+  'use strict';
 
-    const buttonName = '全自动运行';
+  const buttonName = '全自动运行';
 
-    // “全自动运行”按钮的核心逻辑完全由 src/auto_runner/core.ts 脚本处理。
-    // 为彻底避免因两个脚本同时监听同一个按钮而导致的事件冲突，此处不再注册事件监听器。
-    // 本文件的作用仅为确保该按钮在UI上存在。
+  // “全自动运行”按钮的核心逻辑完全由 src/auto_runner/core.ts 脚本处理。
+  // 为彻底避免因两个脚本同时监听同一个按钮而导致的事件冲突，此处不再注册事件监听器。
+  // 本文件的作用仅为确保该按钮在UI上存在。
 
-    // 自动将按钮添加到UI
-    (async function () {
-        try {
-            const scriptId = getScriptId();
-            if (scriptId) {
-                // 使用 appendInexistentScriptButtons 以免重复添加
-                appendInexistentScriptButtons(scriptId, [{ name: buttonName, visible: true }]);
-            }
-        } catch (e) {
-            // 在非脚本库环境中，这会失败，是正常现象
-            console.log(`无法自动添加“${buttonName}”按钮。请在脚本设置中手动添加。`);
-        }
-    })();
+  // 自动将按钮添加到UI
+  (async function () {
+    try {
+      const scriptId = getScriptId();
+      if (scriptId) {
+        // 使用 appendInexistentScriptButtons 以免重复添加
+        appendInexistentScriptButtons(scriptId, [{ name: buttonName, visible: true }]);
+      }
+    } catch (e) {
+      // 在非脚本库环境中，这会失败，是正常现象
+      console.log(`无法自动添加“${buttonName}”按钮。请在脚本设置中手动添加。`);
+    }
+  })();
 })();
 
 // --- “真·自动化运行” 按钮 ---
@@ -528,43 +529,43 @@
 
 // --- “终止” 按钮 ---
 (function () {
-    'use strict';
+  'use strict';
 
-    const buttonName = '终止';
+  const buttonName = '终止';
 
-    // 注册按钮点击事件
-    eventOn(getButtonEvent(buttonName), async () => {
-        try {
-            toastr.info('正在尝试终止所有自动化...');
+  // 注册按钮点击事件
+  eventOn(getButtonEvent(buttonName), async () => {
+    try {
+      toastr.info('正在尝试终止所有自动化...');
 
-            // 等待 auto_runner 的核心脚本加载完成
-            await waitGlobalInitialized('AutoRunnerCore');
-            const core = window.AutoRunnerCore;
+      // 等待 auto_runner 的核心脚本加载完成
+      await waitGlobalInitialized('AutoRunnerCore');
+      const core = window.AutoRunnerCore;
 
-            // 检查核心对象和中断函数是否存在
-            if (core && typeof core.abortAll === 'function') {
-                // 调用核心脚本提供的中断函数
-                core.abortAll();
-                // 核心函数内部应该会处理通知，这里不再重复发送
-            } else {
-                toastr.error('无法访问自动化运行脚本的核心功能 (AutoRunnerCore.abortAll)。');
-                console.error('AutoRunnerCore 或 abortAll 未在全局范围中找到。');
-            }
-        } catch (error) {
-            console.error(`[${buttonName}] 脚本出错:`, error);
-            toastr.error('执行终止脚本时发生错误，请按F12查看控制台。');
-        }
-    });
+      // 检查核心对象和中断函数是否存在
+      if (core && typeof core.abortAll === 'function') {
+        // 调用核心脚本提供的中断函数
+        core.abortAll();
+        // 核心函数内部应该会处理通知，这里不再重复发送
+      } else {
+        toastr.error('无法访问自动化运行脚本的核心功能 (AutoRunnerCore.abortAll)。');
+        console.error('AutoRunnerCore 或 abortAll 未在全局范围中找到。');
+      }
+    } catch (error) {
+      console.error(`[${buttonName}] 脚本出错:`, error);
+      toastr.error('执行终止脚本时发生错误，请按F12查看控制台。');
+    }
+  });
 
-    // 自动将按钮添加到UI
-    (async function () {
-        try {
-            const scriptId = getScriptId();
-            if (scriptId) {
-                appendInexistentScriptButtons(scriptId, [{ name: buttonName, visible: true }]);
-            }
-        } catch (e) {
-            console.log(`无法自动添加“${buttonName}”按钮。请在脚本设置中手动添加。`);
-        }
-    })();
+  // 自动将按钮添加到UI
+  (async function () {
+    try {
+      const scriptId = getScriptId();
+      if (scriptId) {
+        appendInexistentScriptButtons(scriptId, [{ name: buttonName, visible: true }]);
+      }
+    } catch (e) {
+      console.log(`无法自动添加“${buttonName}”按钮。请在脚本设置中手动添加。`);
+    }
+  })();
 })();
