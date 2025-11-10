@@ -16,6 +16,9 @@
     "@types/jquery": "^3.5.33",
     "@types/jqueryui": "^1.12.24",
     "@types/lodash": "^4.17.20",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@types/showdown": "^2.0.6",
     "@types/toastr": "^2.1.43",
     "@types/webpack": "^5.28.5",
     "@typescript-eslint/parser": "^8.46.3",
@@ -70,6 +73,8 @@
     "webpack-obfuscator": "^3.5.1"
   },
   "dependencies": {
+    "@pixi/react": "8.0.0-beta.25",
+    "@vueuse/components": "^14.0.0",
     "@vueuse/core": "^13.9.0",
     "@vueuse/integrations": "^13.9.0",
     "@vueuse/shared": "^13.9.0",
@@ -77,12 +82,22 @@
     "gsap": "^3.13.0",
     "jquery": "^3.7.1",
     "jqueryui": "^1.11.1",
+    "klona": "^2.0.6",
     "lodash": "^4.17.21",
+<<<<<<< HEAD
     "mammoth": "^1.11.0",
+=======
+>>>>>>> 5222cd67a858e8df734db29241ac1f211ca14bca
     "pinia": "^3.0.4",
     "pixi.js": "^8.14.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "toastr": "^2.1.4",
     "vue": "^3.5.24",
+<<<<<<< HEAD
+=======
+    "vue-final-modal": "^4.5.5",
+>>>>>>> 5222cd67a858e8df734db29241ac1f211ca14bca
     "vue-router": "^4.6.3",
     "vue3-pixi": "1.0.0-beta.3",
     "yaml": "^2.8.1",
@@ -92,6 +107,7 @@
     "onlyBuiltDependencies": [
       "@parcel/watcher",
       "@tailwindcss/oxide",
+      "electron",
       "esbuild",
       "javascript-obfuscator",
       "unrs-resolver",
