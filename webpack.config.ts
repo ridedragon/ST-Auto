@@ -52,7 +52,7 @@ function common_path(lhs: string, rhs: string) {
 
 function glob_script_files() {
   const files: string[] = fs
-    .globSync(`src/**/index.{ts,js}`)
+    .globSync(`src/**/index.{ts,tsx,js,jsx}`)
     .filter(file => process.env.CI !== 'true' || !fs.readFileSync(path.join(__dirname, file)).includes('@no-ci'));
 
   const results: string[] = [];
@@ -111,7 +111,7 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
     experiments: {
       outputModule: true,
     },
-    devtool: argv.mode === 'production' ? false : 'eval-source-map',
+    devtool: argv.mode === 'production' ? 'source-map' : 'eval-source-map',
     watchOptions: {
       ignored: ['**/dist', '**/node_modules'],
     },
@@ -252,7 +252,7 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
             },
           ].concat(
             entry.html === undefined
-              ? <any[]>[
+              ? [
                   {
                     test: /\.vue\.s(a|c)ss$/,
                     use: [
@@ -287,8 +287,8 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
                     use: ['style-loader', { loader: 'css-loader', options: { url: false } }, 'postcss-loader'],
                     exclude: /node_modules/,
                   },
-                ]
-              : <any[]>[
+                ] as any[]
+              : [
                   {
                     test: /\.s(a|c)ss$/,
                     use: [
@@ -308,7 +308,7 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
                     ],
                     exclude: /node_modules/,
                   },
-                ],
+                ] as any[],
           ),
         },
       ],
@@ -354,14 +354,16 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
             'pinia',
             '@vueuse/core',
             { from: 'dedent', imports: [['default', 'dedent']] },
+            { from: 'klona', imports: ['klona'] },
+            { from: 'vue-final-modal', imports: ['useModal'] },
             { from: 'zod', imports: ['z'] },
           ],
         }),
         unpluginVueComponents({
           dts: true,
           syncMode: 'overwrite',
-          resolvers: [VueUseComponentsResolver(), VueUseDirectiveResolver()],
           // globs: ['src/panel/component/*.vue'],
+          resolvers: [VueUseComponentsResolver(), VueUseDirectiveResolver()],
         }),
         new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
         new webpack.DefinePlugin({
@@ -448,9 +450,13 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
       if (argv.mode !== 'production' && ['vue', 'pixi'].some(key => request.includes(key))) {
         return callback();
       }
+      if (['react'].some(key => request.includes(key))) {
+        return callback();
+      }
       const global = {
         jquery: '$',
         lodash: '_',
+        showdown: 'showdown',
         toastr: 'toastr',
         vue: 'Vue',
         'vue-router': 'VueRouter',
