@@ -7,6 +7,11 @@
  */
 type EventType = IframeEventType | TavernEventType | string;
 
+type EventOnReturn = {
+  /** 取消监听 */
+  stop: () => void;
+};
+
 /**
  * 让 `listener` 监听 `event_type`, 当事件发生时自动运行 `listener`;
  * 如果 `listener` 已经在监听 `event_type`, 则调用本函数不会有任何效果.
@@ -30,8 +35,11 @@ type EventType = IframeEventType | TavernEventType | string;
  * eventOn(tavern_events.MESSAGE_UPDATED, message_id => {
  *   alert(`你刚刚更新了第 ${message_id} 条聊天消息对吧😡`);
  * });
+ *
+ * @returns 后续操作
+ *   - `stop`: 取消这个监听
  */
-declare function eventOn<T extends EventType>(event_type: T, listener: ListenerType[T]): void;
+declare function eventOn<T extends EventType>(event_type: T, listener: ListenerType[T]): EventOnReturn;
 
 /** @deprecated 请使用 `eventOn(getButtonEvent('按钮名称'), 函数)` 代替 */
 declare function eventOnButton<T extends EventType>(event_type: T, listener: ListenerType[T]): void;
@@ -47,8 +55,11 @@ declare function eventOnButton<T extends EventType>(event_type: T, listener: Lis
  *
  * @example
  * eventMakeLast(要监听的事件, 要注册的函数);
+ *
+ * @returns 后续操作
+ *   - `stop`: 取消这个监听
  */
-declare function eventMakeLast<T extends EventType>(event_type: T, listener: ListenerType[T]): void;
+declare function eventMakeLast<T extends EventType>(event_type: T, listener: ListenerType[T]): EventOnReturn;
 
 /**
  * 让 `listener` 监听 `event_type`, 当事件发生时自动在最先运行 `listener`;
@@ -61,8 +72,11 @@ declare function eventMakeLast<T extends EventType>(event_type: T, listener: Lis
  *
  * @example
  * eventMakeFirst(要监听的事件, 要注册的函数);
+ *
+ * @returns 后续操作
+ *   - `stop`: 取消这个监听
  */
-declare function eventMakeFirst<T extends EventType>(event_type: T, listener: ListenerType[T]): void;
+declare function eventMakeFirst<T extends EventType>(event_type: T, listener: ListenerType[T]): EventOnReturn;
 
 /**
  * 让 `listener` 仅监听下一次 `event_type`, 当该次事件发生时运行 `listener`, 此后取消监听;
@@ -75,8 +89,11 @@ declare function eventMakeFirst<T extends EventType>(event_type: T, listener: Li
  *
  * @example
  * eventOnce(要监听的事件, 要注册的函数);
+ *
+ * @returns 后续操作
+ *   - `stop`: 取消这个监听
  */
-declare function eventOnce<T extends EventType>(event_type: T, listener: ListenerType[T]): void;
+declare function eventOnce<T extends EventType>(event_type: T, listener: ListenerType[T]): EventOnReturn;
 
 /**
  * 发送 `event_type` 事件, 同时可以发送一些数据 `data`.
@@ -268,7 +285,7 @@ interface ListenerType {
   [tavern_events.EXTRAS_CONNECTED]: (modules: any) => void;
   [tavern_events.MESSAGE_SWIPED]: (message_id: number) => void;
   [tavern_events.MESSAGE_SENT]: (message_id: number) => void;
-  [tavern_events.MESSAGE_RECEIVED]: (message_id: number) => void;
+  [tavern_events.MESSAGE_RECEIVED]: (message_id: number, type?: string) => void;
   [tavern_events.MESSAGE_EDITED]: (message_id: number) => void;
   [tavern_events.MESSAGE_DELETED]: (message_id: number) => void;
   [tavern_events.MESSAGE_UPDATED]: (message_id: number) => void;
@@ -339,7 +356,7 @@ interface ListenerType {
   [tavern_events.CHARACTER_GROUP_OVERLAY_STATE_CHANGE_BEFORE]: (state: number) => void;
   [tavern_events.CHARACTER_GROUP_OVERLAY_STATE_CHANGE_AFTER]: (state: number) => void;
   [tavern_events.USER_MESSAGE_RENDERED]: (message_id: number) => void;
-  [tavern_events.CHARACTER_MESSAGE_RENDERED]: (message_id: number) => void;
+  [tavern_events.CHARACTER_MESSAGE_RENDERED]: (message_id: number, type?: string) => void;
   [tavern_events.FORCE_SET_BACKGROUND]: (background: { url: string; path: string }) => void;
   [tavern_events.CHAT_DELETED]: (chat_file_name: string) => void;
   [tavern_events.CHAT_CREATED]: () => void;
@@ -349,14 +366,14 @@ interface ListenerType {
   [tavern_events.GENERATE_AFTER_COMBINE_PROMPTS]: (result: { prompt: string; dryRun: boolean }) => void;
   /** dry_run 只在 SillyTavern 1.13.15 及以后有 */
   [tavern_events.GENERATE_AFTER_DATA]: (
-    generate_data: { prompt: { role: string; content: string }[] },
+    generate_data: { prompt: SillyTavern.SendingMessage[] },
     dry_run: boolean,
   ) => void;
   [tavern_events.GROUP_MEMBER_DRAFTED]: (character_id: string) => void;
   [tavern_events.WORLD_INFO_ACTIVATED]: (entries: ({ world: string } & SillyTavern.FlattenedWorldInfoEntry)[]) => void;
   [tavern_events.TEXT_COMPLETION_SETTINGS_READY]: () => void;
   [tavern_events.CHAT_COMPLETION_SETTINGS_READY]: (generate_data: {
-    messages: { role: 'user' | 'assistant' | 'system'; content: string }[];
+    messages: SillyTavern.SendingMessage[];
     model: string;
     temprature: number;
     frequency_penalty: number;
@@ -382,7 +399,7 @@ interface ListenerType {
     [others: string]: any;
   }) => void;
   [tavern_events.CHAT_COMPLETION_PROMPT_READY]: (event_data: {
-    chat: { role: string; content: string }[];
+    chat: SillyTavern.SendingMessage[];
     dryRun: boolean;
   }) => void;
   [tavern_events.CHARACTER_FIRST_MESSAGE_SELECTED]: (event_args: {
