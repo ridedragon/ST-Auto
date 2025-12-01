@@ -527,9 +527,7 @@ async function callSubAI(): Promise<string | null | typeof ABORT_SIGNAL> {
                   url: `data:${attachment.type};base64,${attachment.content}`,
                 },
               });
-            } else if (
-              attachment.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            ) {
+            } else if (attachment.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
               try {
                 const result = await mammoth.extractRawText({ arrayBuffer });
                 contentParts.push(
