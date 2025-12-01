@@ -911,6 +911,12 @@ async function runAutomation(isFirstRun = false) {
       let finalReplyToSend: string | null = null;
 
       while (subAiRetryCount <= settings.value.maxRetries) {
+        // 检查状态，如果已停止则退出循环
+        if (state !== AutomationState.RUNNING) {
+          console.log('[AutoRunner] 自动化已停止，跳过副AI调用。');
+          return;
+        }
+
         const subAiRawReply = await callSubAI();
 
         if (subAiRawReply === ABORT_SIGNAL) {
@@ -939,6 +945,12 @@ async function runAutomation(isFirstRun = false) {
         }
         showToast('warning', `调用副AI失败或回复无效，将在5秒后重试 (${subAiRetryCount}/${settings.value.maxRetries})`);
         await delay(5000);
+
+        // 延迟后再次检查状态
+        if (state !== AutomationState.RUNNING) {
+          console.log('[AutoRunner] 自动化已停止，重试循环终止。');
+          return;
+        }
       }
 
       if (!finalReplyToSend) {
@@ -1137,6 +1149,14 @@ export function abortSubAICall() {
  * 彻底中止所有自动化流程的紧急函数
  */
 export function abortAll() {
+  // 显式中止可能存在的网络请求，无论当前状态如何
+  abortSubAICall();
+  // 尝试中止 SSC 优化请求
+  const aiOptimizer = (window.parent as any).aiOptimizer;
+  if (aiOptimizer && typeof aiOptimizer.abortOptimization === 'function') {
+    aiOptimizer.abortOptimization();
+  }
+  
   // 使用这些选项来模拟用户立即、无条件地停止一切
   stopAutomation({ skipFinalProcessing: true, userCancelled: true });
 }
