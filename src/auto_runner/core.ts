@@ -527,9 +527,7 @@ async function callSubAI(): Promise<string | null | typeof ABORT_SIGNAL> {
                   url: `data:${attachment.type};base64,${attachment.content}`,
                 },
               });
-            } else if (
-              attachment.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            ) {
+            } else if (attachment.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
               try {
                 const result = await mammoth.extractRawText({ arrayBuffer });
                 contentParts.push(
@@ -875,7 +873,11 @@ async function runAutomation(isFirstRun = false) {
       // 首先，检查AI消息是否为空
       if (!lastMessage.message || lastMessage.message.trim() === '') {
         if (mainAiRegenRetryCount >= settings.value.maxRetries) {
-          showToast('error', `主AI多次返回空消息，已达到最大重试次数 (${settings.value.maxRetries})，自动化已停止。`, true);
+          showToast(
+            'error',
+            `主AI多次返回空消息，已达到最大重试次数 (${settings.value.maxRetries})，自动化已停止。`,
+            true,
+          );
           stopAutomation({ skipFinalProcessing: true });
           return; // finally 将释放锁
         }
@@ -939,7 +941,11 @@ async function runAutomation(isFirstRun = false) {
 
         subAiRetryCount++;
         if (subAiRetryCount > settings.value.maxRetries) {
-          showToast('error', `调用副AI并获得有效回复已达到最大重试次数 (${settings.value.maxRetries})，自动化已停止。`, true);
+          showToast(
+            'error',
+            `调用副AI并获得有效回复已达到最大重试次数 (${settings.value.maxRetries})，自动化已停止。`,
+            true,
+          );
           stopAutomation({ skipFinalProcessing: true });
           return; // finally 将释放锁
         }
@@ -1156,7 +1162,7 @@ export function abortAll() {
   if (aiOptimizer && typeof aiOptimizer.abortOptimization === 'function') {
     aiOptimizer.abortOptimization();
   }
-  
+
   // 使用这些选项来模拟用户立即、无条件地停止一切
   stopAutomation({ skipFinalProcessing: true, userCancelled: true });
 }

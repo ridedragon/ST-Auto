@@ -67,13 +67,7 @@
       </div>
     </div>
     <button class="menu_button wide-button" @click="addEntry">添加提示词条目</button>
-    <input
-      ref="fileInputRef"
-      type="file"
-      multiple
-      style="display: none"
-      @change="handleFileUpload($event)"
-    />
+    <input ref="fileInputRef" type="file" multiple style="display: none" @change="handleFileUpload($event)" />
   </div>
 </template>
 
