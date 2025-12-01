@@ -1149,16 +1149,35 @@ export function abortSubAICall() {
  * 彻底中止所有自动化流程的紧急函数
  */
 export function abortAll() {
-  // 显式中止可能存在的网络请求，无论当前状态如何
-  abortSubAICall();
-  // 尝试中止 SSC 优化请求
-  const aiOptimizer = (window.parent as any).aiOptimizer;
-  if (aiOptimizer && typeof aiOptimizer.abortOptimization === 'function') {
-    aiOptimizer.abortOptimization();
+  console.log('[AutoRunner] abortAll triggered.');
+
+  try {
+    // 显式中止可能存在的网络请求，无论当前状态如何
+    abortSubAICall();
+  } catch (error) {
+    console.error('[AutoRunner] Error executing abortSubAICall:', error);
+  }
+
+  try {
+    // 尝试中止 SSC 优化请求
+    const aiOptimizer = (window.parent as any).aiOptimizer;
+    if (aiOptimizer && typeof aiOptimizer.abortOptimization === 'function') {
+      console.log('[AutoRunner] Calling aiOptimizer.abortOptimization().');
+      aiOptimizer.abortOptimization();
+    } else {
+      // 仅在详细模式下记录，避免在未安装扩展时刷屏
+      console.log('[AutoRunner] aiOptimizer API not found or invalid.');
+    }
+  } catch (error) {
+    console.error('[AutoRunner] Error executing aiOptimizer.abortOptimization:', error);
   }
   
-  // 使用这些选项来模拟用户立即、无条件地停止一切
-  stopAutomation({ skipFinalProcessing: true, userCancelled: true });
+  try {
+    // 使用这些选项来模拟用户立即、无条件地停止一切
+    stopAutomation({ skipFinalProcessing: true, userCancelled: true });
+  } catch (error) {
+    console.error('[AutoRunner] Error executing stopAutomation:', error);
+  }
 }
 
 /**
