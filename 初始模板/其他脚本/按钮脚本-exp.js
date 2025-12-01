@@ -547,8 +547,37 @@
                 core.abortAll();
                 // 核心函数内部应该会处理通知，这里不再重复发送
             } else {
-                toastr.error('无法访问自动化运行脚本的核心功能 (AutoRunnerCore.abortAll)。');
-                console.error('AutoRunnerCore 或 abortAll 未在全局范围中找到。');
+                // Fallback: 如果 abortAll 不存在（旧版本），尝试手动触发停止
+                console.warn('AutoRunnerCore.abortAll not found. Attempting fallback stop.');
+                
+                let fallbackExecuted = false;
+
+                // 1. 尝试中止副AI调用
+                if (core && typeof core.abortSubAICall === 'function') {
+                    core.abortSubAICall();
+                    fallbackExecuted = true;
+                }
+
+                // 1.5 尝试中止 SSC 优化请求 (如果扩展已加载)
+                const aiOptimizer = window.parent.aiOptimizer;
+                if (aiOptimizer && typeof aiOptimizer.abortOptimization === 'function') {
+                    aiOptimizer.abortOptimization();
+                    fallbackExecuted = true;
+                }
+
+                // 2. 尝试触发 /stop 命令
+                // 这通常会触发 GENERATION_STOPPED 事件，进而触发 auto_runner 的 forceStop
+                if (typeof triggerSlash === 'function') {
+                    await triggerSlash('/stop');
+                    fallbackExecuted = true;
+                }
+
+                if (fallbackExecuted) {
+                    toastr.info('已尝试通过替代方法终止自动化 (Fallback)。建议更新 AutoRunner 脚本以获得最佳体验。');
+                } else {
+                    toastr.error('无法访问 AutoRunnerCore.abortAll 且无法执行替代停止方法。');
+                    console.error('AutoRunnerCore.abortAll missing and fallback failed.');
+                }
             }
         } catch (error) {
             console.error(`[${buttonName}] 脚本出错:`, error);

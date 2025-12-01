@@ -1070,6 +1070,12 @@ export async function stopAutomation(options: { skipFinalProcessing?: boolean; u
   abortSubAICall(); // 中止可能在运行的副AI调用
   triggerSlash('/stop');
 
+  // 尝试中止 SSC 优化请求
+  const aiOptimizer = (window.parent as any).aiOptimizer;
+  if (aiOptimizer && typeof aiOptimizer.abortOptimization === 'function') {
+    aiOptimizer.abortOptimization();
+  }
+
   // 如果是因错误而停止，则跳过最终处理
   if (options.skipFinalProcessing) {
     // 在简洁模式下，这条消息是多余的，因为上面的 stopMessage 已经足够
