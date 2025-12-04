@@ -12,10 +12,17 @@
     "target": "ESNext",
     "module": "ESNext",
     "outDir": "dist",
+<<<<<<< HEAD
     "baseUrl": ".",
     "paths": {
       "@/*": [
         "src/*"
+=======
+    "baseUrl": "src",
+    "paths": {
+      "@/*": [
+        "./*"
+>>>>>>> 0d88fdf4db0fdb908f1712ebc405ba065512054b
       ]
     },
     "moduleDetection": "auto",
@@ -27,6 +34,7 @@
     "checkJs": false,
     "sourceMap": true,
     "strict": true,
+    "jsx": "react-jsx",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
