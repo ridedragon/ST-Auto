@@ -14,8 +14,16 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
+<<<<<<< HEAD
       "@/*": [
         "src/*"
+=======
+      "@util/*": [
+        "./util/*"
+      ],
+      "@/*": [
+        "./src/*"
+>>>>>>> 0d05c169dd0622cb404331b23687994fbde743ab
       ]
     },
     "moduleDetection": "auto",
@@ -27,6 +35,7 @@
     "checkJs": false,
     "sourceMap": true,
     "strict": true,
+    "jsx": "react-jsx",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
@@ -36,7 +45,10 @@
   },
   "include": [
     "@types",
+    "初始模板",
+    "示例",
     "src",
+    "util",
     "*.d.ts",
   ],
   "exclude": [
